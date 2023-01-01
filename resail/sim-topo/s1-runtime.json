@@ -1,0 +1,107 @@
+{
+  "target": "bmv2",
+  "p4info": "build/resail.p4.p4info.txt",
+  "bmv2_json": "build/resail.json",
+  "table_entries": [
+    {
+      "table": "MyIngress.next_hop_table",
+      "default_action": true,
+      "action_name": "MyIngress.drop",
+      "action_params": { }
+    },
+    {
+      "table": "MyIngress.next_hop_table",
+      "match": {
+        "meta.next_hop_index": 0
+      },
+      "action_name": "MyIngress.ipv4_forward",
+      "action_params": {
+        "dstAddr": "08:00:00:00:02:22",
+        "port": 2
+      }
+    },
+    { 
+      "table": "MyIngress.next_hop_table",
+      "match": {
+        "meta.next_hop_index": 1
+      },
+      "action_name": "MyIngress.ipv4_forward",
+      "action_params": {
+        "dstAddr": "08:00:00:00:03:33",
+        "port": 3
+      }
+    },
+    { 
+      "table": "MyIngress.next_hop_table",
+      "match": {
+        "meta.next_hop_index": 2
+      },
+      "action_name": "MyIngress.ipv4_forward",
+      "action_params": {
+        "dstAddr": "08:00:00:00:04:44",
+        "port": 4
+      }
+    },
+    { 
+      "table": "MyIngress.next_hop_table",
+      "match": {
+        "meta.next_hop_index": 3
+      },
+      "action_name": "MyIngress.ipv4_forward",
+      "action_params": {
+        "dstAddr": "08:00:00:00:05:55",
+        "port": 5
+      }
+    },
+    {
+      "table": "MyIngress.lookup_table",
+      "match": {
+        "hdr.ipv4.dstAddr": ["25.25.25.0", 29]
+      },
+      "action_name": "MyIngress.set_next_hop_index",
+      "action_params": {
+        "nhi": 1
+      }
+    },
+    {
+      "table": "MyIngress.bitmap_24",
+      "match": {
+        "hdr.ipv4.dstAddr[31:8]": 5592405 
+      },
+      "action_name": "MyIngress.set_bitmap_hit",
+      "action_params": { 
+        "hit": 1
+      }
+    },
+    {
+      "table": "MyIngress.bitmap_20",
+      "match": {
+        "hdr.ipv4.dstAddr[31:12]": 699050 
+      },
+      "action_name": "MyIngress.set_bitmap_hit",
+      "action_params": { 
+        "hit": 1
+      }
+    },
+    {
+      "table": "MyIngress.hash_table",
+      "match": {
+        "meta.hash_key": 11184811
+      },
+      "action_name": "MyIngress.set_next_hop_index",
+      "action_params": {
+        "nhi": 2
+      }
+    },
+    {
+      "table": "MyIngress.hash_table",
+      "match": {
+        "meta.hash_key": 22369616
+      },
+      "action_name": "MyIngress.set_next_hop_index",
+      "action_params": {
+        "nhi": 3
+      }
+    }
+  ]
+}
