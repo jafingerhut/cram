@@ -8,12 +8,15 @@ const bit<16> TYPE_IPV4 = 0x800;
 *********************** H E A D E R S  ***********************************
 *************************************************************************/
 
-typedef bit<9>  egressSpec_t;
-typedef bit<48> macAddr_t;
-typedef bit<32> ip4Addr_t;
-typedef bit<2>  nextHopIndex_t;
-typedef bit<1>  bitmapHit_t;
-typedef bit<25> hashKey_t;
+typedef bit<9>    egressSpec_t;
+typedef bit<48>   macAddr_t;
+typedef bit<32>   ip4Addr_t;
+typedef bit<2>    nextHopIndex_t;
+typedef bit<13>   bitmapIndex_t;
+typedef bit<11>   bitstringIndex_t;
+typedef bit<2048> bitstring_t;
+typedef bit<1>    bitmapHit_t;
+typedef bit<25>   hashKey_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -38,6 +41,8 @@ header ipv4_t {
 
 struct metadata {
     nextHopIndex_t   next_hop_index;
+    bitmapIndex_t    bitmap_index;
+    bitstringIndex_t bitstring_index;
     bitmapHit_t      bitmap_hit;
     hashKey_t        hash_key;
 }
@@ -99,8 +104,19 @@ control MyIngress(inout headers hdr,
         meta.next_hop_index = nhi;
     }
 
-    action set_bitmap_hit(bitmapHit_t hit) {
-        meta.bitmap_hit = hit;
+    action get_bitstring(bitstring_t bitstring) {
+	bit<3> remainder = meta.bitstring_index[2:0];
+	bit<8> shift = meta.bitstring_index[10:3];
+	bit<2048> bitstring0 = bitstring >> shift;
+	bit<2048> bitstring1 = bitstring0 >> shift;
+	bit<2048> bitstring2 = bitstring1 >> shift;
+	bit<2048> bitstring3 = bitstring2 >> shift;
+	bit<2048> bitstring4 = bitstring3 >> shift;
+	bit<2048> bitstring5 = bitstring4 >> shift;
+	bit<2048> bitstring6 = bitstring5 >> shift;
+	bit<2048> bitstring7 = bitstring6 >> shift;
+	bit<2048> bitstring8 = bitstring7 >> remainder;
+	meta.bitmap_hit = (bit<1>)1 & (bitstring8[0:0]);
     }
 
     action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
@@ -117,8 +133,10 @@ control MyIngress(inout headers hdr,
         actions = {
             ipv4_forward;
             drop;
+	    NoAction;
         }
-        size = 4;
+        size = 5;
+	default_action = NoAction();
     }
 
     table lookup_table {
@@ -128,6 +146,7 @@ control MyIngress(inout headers hdr,
         actions = {
             set_next_hop_index;
         }
+	size = 1465;
     }
 
     table hash_table {
@@ -137,114 +156,127 @@ control MyIngress(inout headers hdr,
         actions = {
             set_next_hop_index;
         }
+	size = 901619;
     }
 
-    table bitmap_24 {
+    table bitmap_24_table {
         key = {
-            hdr.ipv4.dstAddr[31:8]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 8192;
     }
 
-    table bitmap_23 {
+    table bitmap_23_table {
         key = {
-            hdr.ipv4.dstAddr[31:9]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 4096;
     }
 
-    table bitmap_22 {
+    table bitmap_22_table {
         key = {
-            hdr.ipv4.dstAddr[31:10]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 2048;
     }
 
-    table bitmap_21 {
+    table bitmap_21_table {
         key = {
-            hdr.ipv4.dstAddr[31:11]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 1024;
     }
 
-    table bitmap_20 {
+    table bitmap_20_table {
         key = {
-            hdr.ipv4.dstAddr[31:12]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 512;
     }
 
-    table bitmap_19 {
+    table bitmap_19_table {
         key = {
-            hdr.ipv4.dstAddr[31:13]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 256;
     }
 
-    table bitmap_18 {
+    table bitmap_18_table {
         key = {
-            hdr.ipv4.dstAddr[31:14]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 128;
     }
 
-    table bitmap_17 {
+    table bitmap_17_table {
         key = {
-            hdr.ipv4.dstAddr[31:15]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 64;
     }
 
-    table bitmap_16 {
+    table bitmap_16_table {
         key = {
-            hdr.ipv4.dstAddr[31:16]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 32;
     }
 
-    table bitmap_15 {
+    table bitmap_15_table {
         key = {
-            hdr.ipv4.dstAddr[31:17]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 16;
     }
 
-    table bitmap_14 {
+    table bitmap_14_table {
         key = {
-            hdr.ipv4.dstAddr[31:18]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 8;
     }
 
-    table bitmap_13 {
+    table bitmap_13_table {
         key = {
-            hdr.ipv4.dstAddr[31:19]: exact;
+            meta.bitmap_index: exact;
         }
         actions = {
-            set_bitmap_hit;
+            get_bitstring;
         }
+	size = 4;
     }
 
     apply {
@@ -260,8 +292,10 @@ control MyIngress(inout headers hdr,
         }
 
         if(foundHop == false) {
-            if(skipToHash == false) {    
-                bitmap_24.apply();
+            if(skipToHash == false) {
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:8] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:8] % 2048);
+                bitmap_24_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:8] ++ (bit<1>)1)) << 0;
@@ -269,7 +303,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_23.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:9] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:9] % 2048);
+		bitmap_23_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:9] ++ (bit<1>)1)) << 1;
@@ -277,7 +313,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_22.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:10] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:10] % 2048);
+                bitmap_22_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:10] ++ (bit<1>)1)) << 2;
@@ -285,7 +323,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_21.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:11] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:11] % 2048);
+                bitmap_21_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:11] ++ (bit<1>)1)) << 3;
@@ -293,7 +333,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_20.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:12] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:12] % 2048);
+                bitmap_20_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:12] ++ (bit<1>)1)) << 4;
@@ -301,7 +343,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_19.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:13] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:13] % 2048);
+                bitmap_19_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:13] ++ (bit<1>)1)) << 5;
@@ -309,7 +353,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_18.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:14] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:14] % 2048);
+                bitmap_18_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:14] ++ (bit<1>)1)) << 6;
@@ -317,7 +363,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_17.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:15] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:15] % 2048);
+                bitmap_17_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:15] ++ (bit<1>)1)) << 7;
@@ -325,7 +373,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_16.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:16] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:16] % 2048);
+                bitmap_16_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:16] ++ (bit<1>)1)) << 8;
@@ -333,7 +383,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_15.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:17] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:17] % 2048);
+                bitmap_15_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:17] ++ (bit<1>)1)) << 9;
@@ -341,7 +393,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_14.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:18] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:18] % 2048);
+                bitmap_14_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:18] ++ (bit<1>)1)) << 10;
@@ -349,7 +403,9 @@ control MyIngress(inout headers hdr,
             }
 
             if(skipToHash == false) {
-                bitmap_13.apply();
+		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:19] / 2048);
+		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:19] % 2048);
+                bitmap_13_table.apply();
                 if(meta.bitmap_hit == 1){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:19] ++ (bit<1>)1)) << 11;
