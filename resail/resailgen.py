@@ -195,9 +195,5 @@ def main(argv):
     gen_topology(next_hop_table)
     gen_control_plane(next_hop_table, lookup_table, bitmap_table, bitmaps, hash_table)
 
-    print(len(next_hop_table))
-    print(len(lookup_table))
-    print(len(hash_table))
-
 if __name__ == "__main__":
     main(sys.argv[1:])
