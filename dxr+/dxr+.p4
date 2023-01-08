@@ -87,9 +87,9 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
 
-    action set_next_hop_index(nextHopIndex_t nhi) {
+    /*action set_next_hop_index(nextHopIndex_t nhi) {
         meta.next_hop_index = nhi;
-    }
+    }*/
 
     action ipv6_forward(macAddr_t dstAddr, egressSpec_t port) {
         standard_metadata.egress_spec = port;
@@ -111,7 +111,7 @@ control MyIngress(inout headers hdr,
 	default_action = NoAction();
     }
 
-    table lookup_table {
+    /*table lookup_table {
         key = {
             hdr.ipv6.dstAddr: lpm;
         }
@@ -119,7 +119,7 @@ control MyIngress(inout headers hdr,
             set_next_hop_index;
         }
 	size = 1465;
-    }
+    }*/
 
     apply {
         if (!hdr.ipv6.isValid()) {

@@ -112,8 +112,10 @@ def gen_next_hop_table(database):
 def gen_topology(next_hop_table):
     dict = {}
 
-    dict["hosts"] = { "h1": { "ip": "2001:1:1::a/64", "mac": "08:00:00:00:01:11", "commands": ["route add default gw 2001:1:1::ff dev eth0",
-                                                                                            "arp -i eth0 -s 2001:1:1::ff 08:00:00:00:01:00"] } }
+    dict["hosts"] = { "h1": { "ip": "2001:1:1::a/64", "mac": "08:00:00:00:01:11", "commands": ["ip -4 addr flush dev eth0",
+                                                                                               "ip -6 addr flush dev eth0",
+                                                                                               "ip -6 addr add 2001:1:1::a/64 dev eth0",
+                                                                                               "ip -6 route add default via 2001:1:1::ff"] } }
     dict["switches"] = { "s1": { "runtime_json": "sim-topo/" + CONTROL_PLANE } }
     dict["links"] = [ ["h1", "s1-p1"] ]
 
@@ -129,8 +131,10 @@ def gen_topology(next_hop_table):
         else:
             fields[7] = hex(int(fields[7], base=16) - 1)[2:]
         gateway_ip = ':'.join(fields)
-        dict["hosts"][f"h{id}"] = { "ip": f"{next_hop}/64", "mac": f"08:00:00:00:0{id}:{id}{id}", "commands": [f"route add default gw {gateway_ip} dev eth0",
-                                                                                                               f"arp -i eth0 -s {gateway_ip} 08:00:00:00:0{id}:00"] }
+        dict["hosts"][f"h{id}"] = { "ip": f"{next_hop}/64", "mac": f"08:00:00:00:0{id}:{id}{id}", "commands": ["ip -4 addr flush dev eth0",
+                                                                                                               "ip -6 addr flush dev eth0",
+                                                                                                               f"ip -6 addr add {next_hop}/64 dev eth0",
+                                                                                                               f"ip -6 route add default via {gateway_ip}"] }
         dict["links"].append([f"s1-p{id}", f"h{id}"])
         id += 1
 
