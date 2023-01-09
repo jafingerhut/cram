@@ -1,5 +1,7 @@
 import sys
 import json
+import math
+from collections import defaultdict
 
 SLICE = 32
 
@@ -7,24 +9,100 @@ TOPOLOGY = "topology.json"
 CONTROL_PLANE = "s1-runtime.json"
 DATA_PLANE = "dxr+.p4"
 
+class Node:
+    def __init__(self, d):
+        self.data = d
+        self.left = None
+        self.right = None
+
+def sortedArrayToBST(arr):
+    if not arr:
+        return None
+ 
+    mid = (len(arr)) // 2
+    root = Node(arr[mid])
+    root.left = sortedArrayToBST(arr[:mid])
+    root.right = sortedArrayToBST(arr[mid+1:])
+    return root
+
+def traverse(node, level, index, dict):
+    if not node:
+        return
+
+    if node.left is None and node.right is None:
+        dict[level][index] = (node.data[0], node.data[1], None, None)
+        return
+
+    current_len = len(dict[level+1])
+
+    if node.left is None:
+        dict[level][index] = (node.data[0], node.data[1], None, current_len)
+        traverse(node.right, level+1, current_len, dict)
+    elif node.right is None:
+        dict[level][index] = (node.data[0], node.data[1], current_len, None)
+        traverse(node.left, level+1, current_len, dict)
+    else:
+        dict[level][index] = (node.data[0], node.data[1], current_len, current_len+1)
+        traverse(node.left, level+1, current_len, dict)
+        traverse(node.right, level+1, current_len+1, dict)
+
 def btod(n):
     return int(n,2)
 
-# def btoip(n):
-#     ip_addr = ""
-#     index = 0
-#     while index < 4:
-#         if len(n) > 8:
-#             ip_addr += str(btod(n[0:8])) + "."
-#             n = n[8:]
-#         elif len(n) > 0:
-#             ip_addr += str(btod(n) * (2**(8 - len(n)))) + "."
-#             n = ""
-#         else:
-#             ip_addr += str(0) + "."
-#         index += 1
-#     ip_addr = ip_addr.rstrip(ip_addr[-1])
-#     return ip_addr
+def btoip(n):
+    address = n.ljust(128, "0")
+    sections = [address[i:i+16] for i in range(0, len(address), 16)]
+    for index in range(0,8):
+        sections[index] = hex(btod(sections[index]))[2:].rjust(4, "0")
+    ip_addr = ':'.join(sections)
+    return ip_addr
+
+def get_left_endpoints(slices, default):
+    match_length = 64 - SLICE
+    base_range = []
+    base_range.append(["0".rjust(match_length, "0"), "1".rjust(match_length, "1"), default])
+    slices.sort(key=lambda x:(len(x[0]),x[0]))
+
+    for next_slice in slices:
+        if next_slice[0] == "exact":
+            continue
+        left = next_slice[0].ljust(match_length, "0")
+        right = next_slice[0].ljust(match_length, "1")
+        next_hop = next_slice[1]
+        
+        index = 0
+        for range in base_range:
+            if btod(left) > btod(range[0]) and btod(left) <= btod(range[1]):
+                # if the left endpoint is greater than the left range value and less than or equal to the right range value
+                # 1. if the right endpoint is less than the right range value, then the new entry gets sandwiched in between two ranges
+                # 2. if the right endpoint is equal to the right range value, then the new entry gets inserted after the current range
+                if btod(right) < btod(range[1]):
+                    base_range.insert(index+1, [left, right, next_hop])
+                    base_range.insert(index+2, [bin(btod(right)+1)[2:].zfill(match_length), range[1], range[2]])
+                    range[1] = bin(btod(left)-1)[2:].zfill(match_length)
+                    break
+                if btod(right) == btod(range[1]):
+                    base_range.insert(index+1, [left, right, next_hop])
+                    range[1] = bin(btod(left)-1)[2:].zfill(match_length)
+                    break
+            if btod(left) == btod(range[0]) and btod(left) <= btod(range[1]):
+                # if the left endpoint is equal to the left range value and less than or equal to the right range value
+                # 1. if the right endpoint is less than the right range value, then the new entry gets inserted before the current range
+                # 2. if the right endpoint is equal to the right range value, we only need to modify the current next hop
+                if btod(right) < btod(range[1]):
+                    range[0] = bin(btod(right)+1)[2:].zfill(match_length)
+                    base_range.insert(index, [left, right, next_hop])
+                    break
+                if btod(right) == btod(range[1]):
+                    range[2] = next_hop
+                    break
+            index += 1
+
+    left_endpoints = []
+    for range in base_range:
+        left_endpoints.append((range[0], range[2]))
+
+    return left_endpoints
 
 def gen_next_hop_table(database):
     dict = {}
@@ -40,75 +118,83 @@ def gen_next_hop_table(database):
 
     return dict
 
-# def gen_lookup_table(database):
-#     dict = {}
+def gen_lookup_table(database, next_hop_table):
+    dict = defaultdict(list)
 
-#     with open(database, "r") as file:
-#         for line in file:
-#             line = line.rstrip()
-#             elements = line.split(",")
-#             prefix = elements[0]
-#             length = int(elements[1])
-#             next_hop = elements[2]
+    with open(database, "r") as file:
+        for line in file:
+            line = line.rstrip()
+            elements = line.split(",")
+            prefix = elements[0]
+            length = int(elements[1])
+            next_hop = elements[2]
 
-#             if length > 24:
-#                 dict[prefix] = (length, next_hop)
+            if length > SLICE:
+                dict[prefix[0:SLICE]].append((prefix[SLICE:], next_hop_table[next_hop]))
+            elif length == SLICE:
+                dict[prefix].append(("exact", next_hop_table[next_hop]))
+            else:
+                dict[prefix].append(("short", next_hop_table[next_hop]))
 
-#     return dict
+    lookup_table = {}
 
-# def gen_bitmap_table(database, next_hop_table):
-#     dict = {}
-#     for index in range(0, 25):
-#         dict[index] = {}
+    index = 0
+    for prefix in dict:
+        if len(dict[prefix]) == 1 and dict[prefix][0][0] == "short":
+            lookup_table[prefix] = ("next hop", dict[prefix][0][1])
+        elif len(dict[prefix]) == 1 and dict[prefix][0][0] == "exact":
+            lookup_table[prefix] = ("next hop", dict[prefix][0][1])
+        else:
+            lookup_table[prefix] = ("index", index)
+            index += 1
 
-#     with open(database, "r") as file:
-#         for line in file:
-#             line = line.rstrip()
-#             elements = line.split(",")
-#             prefix = elements[0]
-#             length = int(elements[1])
-#             next_hop = elements[2]
+    return lookup_table, dict
 
-#             if length > 24:
-#                 continue
-#             dict[length][btod(prefix)] = (length, next_hop_table[next_hop])
+def gen_bsts(lookup_table, parsed_prefixes):
+    dict = {}
 
-#     for index in range(CUTOFF-1,-1,-1):
-#         for prefix in dict[index]:
-#             difference = CUTOFF - index
-#             for entry in range(0, 2**difference):
-#                 if (prefix*(2**difference)) + entry in dict[CUTOFF]:
-#                     continue
-#                 else:
-#                     dict[CUTOFF][(prefix*(2**difference)) + entry] = (CUTOFF, dict[index][prefix][1])
+    largest_set = 0
+    for prefix in parsed_prefixes:
+        if (2*len(parsed_prefixes[prefix]))+1 > largest_set:
+            largest_set = (2*len(parsed_prefixes[prefix]))+1
+    max_levels = math.ceil(math.log2(largest_set))
 
-#     bitmaps = {}
-#     for index in range(CUTOFF, 25):
-#         bitmaps[index] = {}
+    for index in range(0, max_levels):
+        dict[index] = {}
 
-#     for index in range(CUTOFF, 25):
-#         bitstring = ""
-#         for value in range(0, 2**index):
-#             if value in dict[index]:
-#                 bitstring += "1"
-#             else:
-#                 bitstring += "0"
-#         key_count = int(2**index / 2048)
-#         for key_index in range(0, key_count):
-#             bitmaps[index][key_index] = btod(bitstring[2048*key_index:2048+(2048*key_index)][::-1])
+    for prefix in lookup_table:
+        if lookup_table[prefix][0] != "index":
+            continue
+        initial_index = lookup_table[prefix][1]
+        prefixes = parsed_prefixes[prefix]
 
-#     return dict, bitmaps
+        default = None
+        for entry in prefixes:
+            if entry[0] == "exact":
+                default = entry[1]
+        if default is None:
+            max_length = 0
+            for default_entry in lookup_table:
+                if lookup_table[default_entry][0] != "next hop" or len(default_entry) <= max_length:
+                    continue
+                current_index = 0
+                valid_match = True
+                while current_index < len(default_entry):
+                    if default_entry[current_index] != prefix[current_index]:
+                        valid_match = False
+                        break
+                    current_index += 1
+                if valid_match is True:
+                    max_length = current_index
+                    default = lookup_table[default_entry][1]
 
-# def gen_hash_table(bitmap_table):
-#     dict = {}
+        left_endpoints = get_left_endpoints(prefixes, default)
+        root = sortedArrayToBST(left_endpoints)
+        level = 0
+        traverse(root, level, initial_index, dict)
 
-#     for index in range(CUTOFF, 25):
-#         for prefix in bitmap_table[index]:
-#             difference = 25 - index
-#             hash_key = (prefix * (2 ** difference)) + (2 ** (difference-1))
-#             dict[hash_key] = bitmap_table[index][prefix][1]
-#     return dict
-
+    return dict
+        
 def gen_topology(next_hop_table):
     dict = {}
 
@@ -141,7 +227,7 @@ def gen_topology(next_hop_table):
     with open(TOPOLOGY, "w") as file:
         json.dump(dict, file, indent=4)
 
-def gen_control_plane(next_hop_table, lookup_table, bitmap_table, bitmaps, hash_table):
+def gen_control_plane(next_hop_table, lookup_table, bsts_table):
     dict = {}
 
     dict["target"] = "bmv2"
@@ -162,24 +248,28 @@ def gen_control_plane(next_hop_table, lookup_table, bitmap_table, bitmaps, hash_
                                                 "action_params": { "dstAddr": f"08:00:00:00:0{id}:{id}{id}", "port": id } })
         id += 1
 
-#     for prefix in lookup_table:
-#         dict["table_entries"].append({ "table": "MyIngress.lookup_table",
-#                                                 "match": { "hdr.ipv4.dstAddr": [ btoip(prefix), lookup_table[prefix][0] ] },
-#                                                 "action_name": "MyIngress.set_next_hop_index",
-#                                                 "action_params": { "nhi": next_hop_table[lookup_table[prefix][1]] } })
+    for prefix in lookup_table:
+        if lookup_table[prefix][0] == "next hop":
+            action_name = "set_next_hop_index"
+            action_data = "nhi"
+        else:
+            action_name = "set_bst_index"
+            action_data = "bi"
+        
+        dict["table_entries"].append({ "table": "MyIngress.lookup_table",
+                                                "match": { f"hdr.ipv6.dstAddr[127:{128-SLICE}]": [ btoip(prefix), len(prefix) ] },
+                                                "action_name": f"MyIngress.{action_name}",
+                                                "action_params": { f"{action_data}": lookup_table[prefix][1] } })
 
-#     for index in range(CUTOFF, 25):
-#         for key in bitmaps[index]:
-#             dict["table_entries"].append({ "table": f"MyIngress.bitmap_{index}_table",
-#                                                     "match": { "meta.bitmap_index": key },
-#                                                     "action_name": "MyIngress.get_bitstring",
-#                                                     "action_params": { "bitstring": bitmaps[index][key] } })
-    
-#     for prefix in hash_table:
-#         dict["table_entries"].append({ "table": "MyIngress.hash_table",
-#                                                 "match": { "meta.hash_key": prefix },
-#                                                 "action_name": "MyIngress.set_next_hop_index",
-#                                                 "action_params": { "nhi": hash_table[prefix] } })
+    for index in range(0, len(bsts_table)):
+        for key in bsts_table[index]:
+            dict["table_entries"].append({ "table": f"MyIngress.bst_{index}_table",
+                                                    "match": { "meta.bst_index": key },
+                                                    "action_name": "MyIngress.choose_action",
+                                                    "action_params": { "prefix": bsts_table[index][key][0],
+                                                                       "next_hop": bsts_table[index][key][1],
+                                                                       "left_index": bsts_table[index][key][2],
+                                                                       "right_index": bsts_table[index][key][3] } })
     
     with open(CONTROL_PLANE, "w") as file:
         json.dump(dict, file, indent=4)
@@ -192,13 +282,11 @@ def main(argv):
     database = argv[0]
 
     next_hop_table = gen_next_hop_table(database)
-    lookup_table, bitmap_table, bitmaps, hash_table = 5, 5, 5, 5
-    # lookup_table = gen_lookup_table(database)
-    # bitmap_table, bitmaps = gen_bitmap_table(database, next_hop_table)
-    # hash_table = gen_hash_table(bitmap_table)
+    lookup_table, parsed_prefixes = gen_lookup_table(database, next_hop_table)
+    bsts_table = gen_bsts(lookup_table, parsed_prefixes)
 
     gen_topology(next_hop_table)
-    gen_control_plane(next_hop_table, lookup_table, bitmap_table, bitmaps, hash_table)
+    gen_control_plane(next_hop_table, lookup_table, bsts_table)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
