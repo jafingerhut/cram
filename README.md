@@ -35,12 +35,12 @@ make run
 ```bash
 xterm h1 h2 h3 h4 h5
 ```
-9. Send and receive packets <br />
-On h2, h3, h4, and h5:
+9. Send and receive packets
+### On h2, h3, h4, and h5:
 ```bash
 ./receive.py
 ```
-On h1:
+### On h1:
 ```bash
 ./send.py ip_address "data"
 ```
