@@ -265,8 +265,8 @@ def gen_control_plane(next_hop_table, lookup_table, bsts_table):
         for key in bsts_table[index]:
             dict["table_entries"].append({ "table": f"MyIngress.bst_{index}_table",
                                                     "match": { "meta.bst_index": key },
-                                                    "action_name": "MyIngress.choose_action",
-                                                    "action_params": { "prefix": bsts_table[index][key][0],
+                                                    "action_name": "MyIngress.node_action",
+                                                    "action_params": { "prefix": btod(bsts_table[index][key][0]),
                                                                        "next_hop": bsts_table[index][key][1],
                                                                        "left_index": bsts_table[index][key][2],
                                                                        "right_index": bsts_table[index][key][3] } })
