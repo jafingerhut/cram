@@ -1,6 +1,57 @@
 # The CRAM Model Sample Implementations
 
-Instructions:
+## Instructions:
 1. Navigate to: https://github.com/jafingerhut/p4-guide/blob/master/bin/README-install-troubleshooting.md
 2. Download the 2022-Nov-01, Ubuntu 20.04, 2.3 GBytes VM image
 3. Import the VM image into VirtualBox 6.1.40 on Windows 10
+4. Clone this Git repository into /home/p4
+5. Copy the dxr+ and resail directories into /home/p4/tutorials/exercises
+```bash
+cd ~
+cp -r cram/dxr+/ tutorials/exercises/
+cp -r cram/resail/ tutorials/exercises/
+```
+6. Generate the control plane files
+```bash
+cd /home/p4/tutorials/exercises/dxr+/
+mkdir sim-topo
+python3 dxr+gen.py ipv6.txt
+mv *.json sim-topo/
+cd /home/p4/tutorials/exercises/resail/
+mkdir sim-topo
+python3 resailgen.py ipv4.txt
+mv *.json sim-topo/
+```
+7. Compile and run the P4 code
+```bash
+cd /home/p4/tutorials/exercises/dxr+/
+make run
+```
+OR
+```bash
+cd /home/p4/tutorials/exercises/resail/
+make run
+```
+8. Launch xterm windows for testing
+```bash
+xterm h1 h2 h3 h4 h5
+```
+9. Send and receive packets
+On h2, h3, h4, and h5:
+```bash
+./receive.py
+```
+On h1:
+```bash
+./send.py ip_address "data"
+```
+
+### Note - DXR+ requires this additional step:
+1. Move updated utility files into their proper locations
+```bash
+cd ~
+rm tutorials/utils/p4_mininet.py
+cp cram/p4_mininet.py tutorials/utils/
+rm tutorials/utils/p4runtime_lib/convert.py
+cp cram/convert.py tutorials/utils/p4runtime_lib/
+```
