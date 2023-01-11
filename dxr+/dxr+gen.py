@@ -1,6 +1,7 @@
 import sys
 import json
 import math
+import socket
 from collections import defaultdict
 
 SLICE = 32
@@ -33,7 +34,7 @@ def traverse(node, level, index, dict):
         dict[level][index] = (node.data[0], node.data[1], None, None)
         return
 
-    current_len = len(dict[level+1])
+    current_len = len(dict[level+1])+1
 
     if node.left is None:
         dict[level][index] = (node.data[0], node.data[1], None, current_len)
@@ -114,7 +115,7 @@ def gen_next_hop_table(database):
             next_hop = elements[2]
             if next_hop in dict:
                 continue
-            dict[next_hop] = len(dict)
+            dict[next_hop] = len(dict)+1
 
     return dict
 
@@ -138,7 +139,7 @@ def gen_lookup_table(database, next_hop_table):
 
     lookup_table = {}
 
-    index = 0
+    index = 1
     for prefix in dict:
         if len(dict[prefix]) == 1 and dict[prefix][0][0] == "short":
             lookup_table[prefix] = ("next hop", dict[prefix][0][1])
@@ -257,19 +258,28 @@ def gen_control_plane(next_hop_table, lookup_table, bsts_table):
             action_data = "bi"
         
         dict["table_entries"].append({ "table": "MyIngress.lookup_table",
-                                                "match": { f"hdr.ipv6.dstAddr[127:{128-SLICE}]": [ btoip(prefix), len(prefix) ] },
+                                                "match": { f"hdr.ipv6.dstAddr": [ btoip(prefix), len(prefix) ] },
                                                 "action_name": f"MyIngress.{action_name}",
                                                 "action_params": { f"{action_data}": lookup_table[prefix][1] } })
 
     for index in range(0, len(bsts_table)):
         for key in bsts_table[index]:
+            next_hop = bsts_table[index][key][1]
+            left_index = bsts_table[index][key][2]
+            right_index = bsts_table[index][key][3]
+            if next_hop is None:
+                next_hop = 0
+            if left_index is None:
+                left_index = 0
+            if right_index is None:
+                right_index = 0
             dict["table_entries"].append({ "table": f"MyIngress.bst_{index}_table",
                                                     "match": { "meta.bst_index": key },
                                                     "action_name": "MyIngress.node_action",
                                                     "action_params": { "prefix": btod(bsts_table[index][key][0]),
-                                                                       "next_hop": bsts_table[index][key][1],
-                                                                       "left_index": bsts_table[index][key][2],
-                                                                       "right_index": bsts_table[index][key][3] } })
+                                                                       "next_hop": next_hop,
+                                                                       "left_index": left_index,
+                                                                       "right_index": right_index } })
     
     with open(CONTROL_PLANE, "w") as file:
         json.dump(dict, file, indent=4)

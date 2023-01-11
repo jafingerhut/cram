@@ -3,6 +3,8 @@
 #include <v1model.p4>
 
 const bit<16> TYPE_IPV6 = 0x86dd;
+const bit<8>  SLICE = 32;
+const bit<1>  NULL = 0;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -11,7 +13,9 @@ const bit<16> TYPE_IPV6 = 0x86dd;
 typedef bit<9>    egressSpec_t;
 typedef bit<48>   macAddr_t;
 typedef bit<128>  ip6Addr_t;
-typedef bit<2>    nextHopIndex_t;
+typedef bit<3>    nextHopIndex_t;
+typedef bit<100> bstIndex_t;
+typedef bit<1>   bstHit_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -32,6 +36,8 @@ header ipv6_t {
 
 struct metadata {
     nextHopIndex_t   next_hop_index;
+    bstIndex_t       bst_index;
+    bstHit_t         bst_hit;
 }
 
 struct headers {
@@ -87,15 +93,43 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
 
-    /*action set_next_hop_index(nextHopIndex_t nhi) {
+    action set_next_hop_index(nextHopIndex_t nhi) {
         meta.next_hop_index = nhi;
-    }*/
+    }
+
+    action set_bst_index(bstIndex_t bi) {
+	meta.bst_index = bi;
+    }
 
     action ipv6_forward(macAddr_t dstAddr, egressSpec_t port) {
         standard_metadata.egress_spec = port;
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv6.hopLimit = hdr.ipv6.hopLimit - 1;
+    }
+
+    action node_action(bit<(64-SLICE)> prefix, nextHopIndex_t next_hop, bstIndex_t left_index, bstIndex_t right_index) {
+	if (hdr.ipv6.dstAddr[(128-SLICE-1):64] == prefix) {
+	    meta.next_hop_index = next_hop;
+	    meta.bst_hit = 1;
+	}
+	if (hdr.ipv6.dstAddr[(128-SLICE-1):64] < prefix) {
+	    if (left_index == (bit<100>)NULL) {
+		meta.bst_hit = 1;
+	    }
+	    else {
+		meta.bst_index = left_index;
+	    }
+	}
+	if (hdr.ipv6.dstAddr[(128-SLICE-1):64] > prefix) {
+	    meta.next_hop_index = next_hop;
+	    if (right_index == (bit<100>)NULL) {
+		meta.bst_hit = 1;
+	    }
+	    else {
+		meta.bst_index = right_index;
+	    }
+	}
     }
 
     table next_hop_table {
@@ -111,15 +145,146 @@ control MyIngress(inout headers hdr,
 	default_action = NoAction();
     }
 
-    /*table lookup_table {
+    table lookup_table {
         key = {
             hdr.ipv6.dstAddr: lpm;
         }
         actions = {
             set_next_hop_index;
+	    set_bst_index;
         }
-	size = 1465;
-    }*/
+	size = 32539;
+    }
+
+    table bst_0_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 10100;
+    }
+
+    table bst_1_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 17641;
+    }
+
+    table bst_2_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 16987;
+    }
+
+    table bst_3_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 16750;
+    }
+
+    table bst_4_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 15279;
+    }
+
+    table bst_5_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 14928;
+    }
+
+    table bst_6_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 15201;
+    }
+
+    table bst_7_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 15642;
+    }
+
+    table bst_8_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 13490;
+    }
+
+    table bst_9_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 12075;
+    }
+
+    table bst_10_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 9195;
+    }
+
+    table bst_11_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 5689;
+    }
+
+    table bst_12_table {
+	key = {
+	    meta.bst_index: exact;
+	}
+	actions = {
+	    node_action;
+	}
+	size = 594;
+    }
 
     apply {
         if (!hdr.ipv6.isValid()) {
@@ -128,14 +293,64 @@ control MyIngress(inout headers hdr,
 
         bool foundHop = false;
 
-        /*if(lookup_table.apply().hit) {
-            foundHop = true;
-        }*/
+	switch (lookup_table.apply().action_run) {
+	    set_next_hop_index: {
+		foundHop = true;
+	    }
+	    set_bst_index: {
+		;
+	    }
+	    default: {
+		return;
+	    }
+	}
 
-        if(foundHop == false) {
-            meta.next_hop_index = hdr.ipv6.dstAddr[1:0];
+        if (foundHop == false) {
+            if (meta.bst_hit != 1) {
+		bst_0_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_1_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_2_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_3_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_4_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_5_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_6_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_7_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_8_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_9_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_10_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_11_table.apply();
+	    }
+	    if (meta.bst_hit != 1) {
+		bst_12_table.apply();
+	    }
         }
 
+	if (meta.next_hop_index == (bit<3>)NULL) {
+	    return;
+	}
+	
         next_hop_table.apply();
     }
 }
