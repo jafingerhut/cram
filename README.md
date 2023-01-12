@@ -45,7 +45,7 @@ xterm h1 h2 h3 h4 h5
 ./send.py ip_address "data"
 ```
 
-## Note - DXR+ requires this additional step:
+## DXR+ Additional Step:
 1. Move updated utility files into their proper locations
 ```bash
 cd ~
