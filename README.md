@@ -8,14 +8,14 @@
 5. Copy the dxr+ and resail directories into /home/p4/tutorials/exercises
 ```bash
 cd ~
-cp -r cram/dxr+/ tutorials/exercises/
+cp -r cram/bsic/ tutorials/exercises/
 cp -r cram/resail/ tutorials/exercises/
 ```
 6. Generate the control plane files
 ```bash
-cd /home/p4/tutorials/exercises/dxr+/
+cd /home/p4/tutorials/exercises/bsic/
 mkdir sim-topo
-python3 dxr+gen.py ipv6.txt
+python3 bsicgen.py ipv6.txt
 mv *.json sim-topo/
 cd /home/p4/tutorials/exercises/resail/
 mkdir sim-topo
@@ -24,7 +24,7 @@ mv *.json sim-topo/
 ```
 7. Compile and run the P4 code
 ```bash
-cd /home/p4/tutorials/exercises/dxr+/
+cd /home/p4/tutorials/exercises/bsic/
 make run
 ```
 ```bash
@@ -45,7 +45,7 @@ xterm h1 h2 h3 h4 h5
 ./send.py ip_address "data"
 ```
 
-## DXR+ Additional Step:
+## BSIC Additional Step:
 1. Move updated utility files into their proper locations
 ```bash
 cd ~

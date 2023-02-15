@@ -8,7 +8,7 @@ SLICE = 32
 
 TOPOLOGY = "topology.json"
 CONTROL_PLANE = "s1-runtime.json"
-DATA_PLANE = "dxr+.p4"
+DATA_PLANE = "bsic.p4"
 
 class Node:
     def __init__(self, d):
@@ -233,7 +233,7 @@ def gen_control_plane(next_hop_table, lookup_table, bsts_table):
 
     dict["target"] = "bmv2"
     dict["p4info"] = f"build/{DATA_PLANE}.p4info.txt"
-    dict["bmv2_json"] = "build/dxr+.json"
+    dict["bmv2_json"] = "build/bsic.json"
     dict["table_entries"] = []
 
     dict["table_entries"].append({ "table": "MyIngress.next_hop_table",

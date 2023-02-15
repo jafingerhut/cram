@@ -8,7 +8,7 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - given-names: Robert Chang
-    email: robertchang25@g.ucla.edu
-    affiliation: UCLA
+  - given-names: Anonymous
+    email: thecrammodel@gmail.com
+    affiliation: Anonymous
 repository-code: 'https://github.com/ThePuriProdigy/cram'
