@@ -5,7 +5,7 @@
 2. Download the 2022-Nov-01, Ubuntu 20.04, 2.3 GBytes VM image
 3. Import the VM image into VirtualBox 6.1.40 on Windows 10
 4. Clone this Git repository into /home/p4
-5. Copy the dxr+ and resail directories into /home/p4/tutorials/exercises
+5. Copy the bsic and resail directories into /home/p4/tutorials/exercises
 ```bash
 cd ~
 cp -r cram/bsic/ tutorials/exercises/
@@ -15,7 +15,7 @@ cp -r cram/resail/ tutorials/exercises/
 ```bash
 cd /home/p4/tutorials/exercises/bsic/
 mkdir sim-topo
-python3 bsicgen.py ipv6.txt
+python3 bsicgen.py ipv6.txt (may take around 10 minutes)
 mv *.json sim-topo/
 cd /home/p4/tutorials/exercises/resail/
 mkdir sim-topo
@@ -29,7 +29,7 @@ make run
 ```
 ```bash
 cd /home/p4/tutorials/exercises/resail/
-make run
+make run (may take around 10 minutes)
 ```
 8. Launch xterm windows for testing
 ```bash
@@ -45,7 +45,7 @@ xterm h1 h2 h3 h4 h5
 ./send.py ip_address "data"
 ```
 
-## BSIC Additional Step:
+## BSIC Additional Step (run between steps 6 and 7):
 1. Move updated utility files into their proper locations
 ```bash
 cd ~
