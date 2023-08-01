@@ -171,7 +171,7 @@ control MyIngress(inout headers hdr,
         actions = {
             ipv4_forward;
             drop;
-	    NoAction;
+	        NoAction;
         }
         size = 5;
 	    default_action = NoAction();
