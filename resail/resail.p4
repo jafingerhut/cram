@@ -1,6 +1,7 @@
 /* -*- P4_16 -*- */
+
 #include <core.p4>
-#include <v1model.p4>
+#include <tna.p4>
 
 const bit<16> TYPE_IPV4 = 0x800;
 
@@ -12,11 +13,11 @@ typedef bit<9>    egressSpec_t;
 typedef bit<48>   macAddr_t;
 typedef bit<32>   ip4Addr_t;
 typedef bit<2>    nextHopIndex_t;
-typedef bit<13>   bitmapIndex_t;
-typedef bit<11>   bitstringIndex_t;
-typedef bit<2048> bitstring_t;
-typedef bit<1>    bitmapHit_t;
+typedef bit<19>   bitmapIndex_t;
+typedef bit<5>    bitstringIndex_t;
+typedef bit<32>   bitstring_t;
 typedef bit<25>   hashKey_t;
+typedef bit<32>   bitmapMask_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -43,8 +44,9 @@ struct metadata {
     nextHopIndex_t   next_hop_index;
     bitmapIndex_t    bitmap_index;
     bitstringIndex_t bitstring_index;
-    bitmapHit_t      bitmap_hit;
     hashKey_t        hash_key;
+    bitmapMask_t     bitmap_mask
+    bitstring_t      bitstring;
 }
 
 struct headers {
@@ -105,18 +107,7 @@ control MyIngress(inout headers hdr,
     }
 
     action get_bitstring(bitstring_t bitstring) {
-	bit<3> remainder = meta.bitstring_index[2:0];
-	bit<8> shift = meta.bitstring_index[10:3];
-	bit<2048> bitstring0 = bitstring >> shift;
-	bit<2048> bitstring1 = bitstring0 >> shift;
-	bit<2048> bitstring2 = bitstring1 >> shift;
-	bit<2048> bitstring3 = bitstring2 >> shift;
-	bit<2048> bitstring4 = bitstring3 >> shift;
-	bit<2048> bitstring5 = bitstring4 >> shift;
-	bit<2048> bitstring6 = bitstring5 >> shift;
-	bit<2048> bitstring7 = bitstring6 >> shift;
-	bit<2048> bitstring8 = bitstring7 >> remainder;
-	meta.bitmap_hit = (bit<1>)1 & (bitstring8[0:0]);
+        meta.bitstring = bitstring;
     }
 
     action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
@@ -124,6 +115,53 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
+
+    action get_bitmap_mask(bitmapMask_t mask) {
+        meta.bitmap_mask = mask;
+    }
+
+    table bitmap_mask_table {
+        key = {
+            meta.bitstring_index : ternary;
+        }
+        actions = {
+            get_bitmap_mask;
+        }
+        const entries = {
+            0  &&& 0x1f : get_bitmap_mask(1 << 0);
+            1  &&& 0x1f : get_bitmap_mask(1 << 1);
+            2  &&& 0x1f : get_bitmap_mask(1 << 2);
+            3  &&& 0x1f : get_bitmap_mask(1 << 3);
+            4  &&& 0x1f : get_bitmap_mask(1 << 4);
+            5  &&& 0x1f : get_bitmap_mask(1 << 5);
+            6  &&& 0x1f : get_bitmap_mask(1 << 6);
+            7  &&& 0x1f : get_bitmap_mask(1 << 7);
+            8  &&& 0x1f : get_bitmap_mask(1 << 8);
+            9  &&& 0x1f : get_bitmap_mask(1 << 9);
+            10 &&& 0x1f : get_bitmap_mask(1 << 10);
+            11 &&& 0x1f : get_bitmap_mask(1 << 11);
+            12 &&& 0x1f : get_bitmap_mask(1 << 12);
+            13 &&& 0x1f : get_bitmap_mask(1 << 13);
+            14 &&& 0x1f : get_bitmap_mask(1 << 14);
+            15 &&& 0x1f : get_bitmap_mask(1 << 15);
+            16 &&& 0x1f : get_bitmap_mask(1 << 16);
+            17 &&& 0x1f : get_bitmap_mask(1 << 17);
+            18 &&& 0x1f : get_bitmap_mask(1 << 18);
+            19 &&& 0x1f : get_bitmap_mask(1 << 19);
+            20 &&& 0x1f : get_bitmap_mask(1 << 20);
+            21 &&& 0x1f : get_bitmap_mask(1 << 21);
+            22 &&& 0x1f : get_bitmap_mask(1 << 22);
+            23 &&& 0x1f : get_bitmap_mask(1 << 23);
+            24 &&& 0x1f : get_bitmap_mask(1 << 24);
+            25 &&& 0x1f : get_bitmap_mask(1 << 25);
+            26 &&& 0x1f : get_bitmap_mask(1 << 26);
+            27 &&& 0x1f : get_bitmap_mask(1 << 27);
+            28 &&& 0x1f : get_bitmap_mask(1 << 28);
+            29 &&& 0x1f : get_bitmap_mask(1 << 29);
+            30 &&& 0x1f : get_bitmap_mask(1 << 30);
+            31 &&& 0x1f : get_bitmap_mask(1 << 31);
+        }
     }
 
     table next_hop_table {
@@ -136,7 +174,7 @@ control MyIngress(inout headers hdr,
 	    NoAction;
         }
         size = 5;
-	default_action = NoAction();
+	    default_action = NoAction();
     }
 
     table lookup_table {
@@ -146,7 +184,7 @@ control MyIngress(inout headers hdr,
         actions = {
             set_next_hop_index;
         }
-	size = 1465;
+	    size = 1465;
     }
 
     table hash_table {
@@ -156,7 +194,7 @@ control MyIngress(inout headers hdr,
         actions = {
             set_next_hop_index;
         }
-	size = 901619;
+	    size = 901619;
     }
 
     table bitmap_24_table {
@@ -166,7 +204,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 8192;
+	    size = 524288;
     }
 
     table bitmap_23_table {
@@ -176,7 +214,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 4096;
+	    size = 262144;
     }
 
     table bitmap_22_table {
@@ -186,7 +224,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 2048;
+	    size = 131072;
     }
 
     table bitmap_21_table {
@@ -196,7 +234,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 1024;
+	    size = 65536;
     }
 
     table bitmap_20_table {
@@ -206,7 +244,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 512;
+	    size = 32768;
     }
 
     table bitmap_19_table {
@@ -216,7 +254,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 256;
+	    size = 16384;
     }
 
     table bitmap_18_table {
@@ -226,7 +264,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 128;
+	    size = 8192;
     }
 
     table bitmap_17_table {
@@ -236,7 +274,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 64;
+	    size = 4096;
     }
 
     table bitmap_16_table {
@@ -246,7 +284,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 32;
+	    size = 2048;
     }
 
     table bitmap_15_table {
@@ -256,7 +294,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 16;
+	    size = 1024;
     }
 
     table bitmap_14_table {
@@ -266,7 +304,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 8;
+	    size = 512;
     }
 
     table bitmap_13_table {
@@ -276,7 +314,7 @@ control MyIngress(inout headers hdr,
         actions = {
             get_bitstring;
         }
-	size = 4;
+	    size = 256;
     }
 
     apply {
@@ -293,120 +331,144 @@ control MyIngress(inout headers hdr,
 
         if(foundHop == false) {
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:8] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:8] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:8] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:8] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_24_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:8] ++ (bit<1>)1)) << 0;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:9] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:9] % 2048);
-		bitmap_23_table.apply();
-                if(meta.bitmap_hit == 1){
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:9] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:9] % 32);
+
+                bitmap_mask_table.apply();
+                bitmap_23_table.apply();
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:9] ++ (bit<1>)1)) << 1;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:10] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:10] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:10] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:10] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_22_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:10] ++ (bit<1>)1)) << 2;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:11] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:11] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:11] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:11] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_21_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:11] ++ (bit<1>)1)) << 3;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:12] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:12] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:12] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:12] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_20_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:12] ++ (bit<1>)1)) << 4;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:13] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:13] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:13] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:13] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_19_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:13] ++ (bit<1>)1)) << 5;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:14] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:14] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:14] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:14] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_18_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:14] ++ (bit<1>)1)) << 6;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:15] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:15] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:15] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:15] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_17_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:15] ++ (bit<1>)1)) << 7;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:16] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:16] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:16] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:16] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_16_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:16] ++ (bit<1>)1)) << 8;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:17] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:17] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:17] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:17] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_15_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:17] ++ (bit<1>)1)) << 9;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:18] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:18] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:18] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:18] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_14_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:18] ++ (bit<1>)1)) << 10;
                 }
             }
 
             if(skipToHash == false) {
-		meta.bitmap_index = (bit<13>)(hdr.ipv4.dstAddr[31:19] / 2048);
-		meta.bitstring_index = (bit<11>)(hdr.ipv4.dstAddr[31:19] % 2048);
+                meta.bitmap_index = (bit<19>)(hdr.ipv4.dstAddr[31:19] / 32);
+                meta.bitstring_index = (bit<5>)(hdr.ipv4.dstAddr[31:19] % 32);
+
+                bitmap_mask_table.apply();
                 bitmap_13_table.apply();
-                if(meta.bitmap_hit == 1){
+                if(meta.bitmap_mask & meta.bitstring != 0){
                     skipToHash = true;
                     meta.hash_key = ((bit<25>)(hdr.ipv4.dstAddr[31:19] ++ (bit<1>)1)) << 11;
                 }
@@ -471,10 +533,10 @@ control MyDeparser(packet_out packet, in headers hdr) {
 *************************************************************************/
 
 V1Switch(
-MyParser(),
-MyVerifyChecksum(),
-MyIngress(),
-MyEgress(),
-MyComputeChecksum(),
-MyDeparser()
+    MyParser(),
+    MyVerifyChecksum(),
+    MyIngress(),
+    MyEgress(),
+    MyComputeChecksum(),
+    MyDeparser()
 ) main;

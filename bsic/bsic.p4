@@ -1,6 +1,7 @@
 /* -*- P4_16 -*- */
+
 #include <core.p4>
-#include <v1model.p4>
+#include <tna.p4>
 
 const bit<16> TYPE_IPV6 = 0x86dd;
 const bit<8>  SLICE = 32;
@@ -13,7 +14,7 @@ const bit<1>  NULL = 0;
 typedef bit<9>    egressSpec_t;
 typedef bit<48>   macAddr_t;
 typedef bit<128>  ip6Addr_t;
-typedef bit<3>    nextHopIndex_t;
+typedef bit<2>    nextHopIndex_t;
 typedef bit<100> bstIndex_t;
 typedef bit<1>   bstHit_t;
 
@@ -389,10 +390,10 @@ control MyDeparser(packet_out packet, in headers hdr) {
 *************************************************************************/
 
 V1Switch(
-MyParser(),
-MyVerifyChecksum(),
-MyIngress(),
-MyEgress(),
-MyComputeChecksum(),
-MyDeparser()
+	MyParser(),
+	MyVerifyChecksum(),
+	MyIngress(),
+	MyEgress(),
+	MyComputeChecksum(),
+	MyDeparser()
 ) main;
