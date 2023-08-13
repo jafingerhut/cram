@@ -48,92 +48,125 @@ struct egress_metadata_t {
     // user-defined egress metadata
 }
 
-parser IngressParser(
+parser ingressParserImpl(
     packet_in pkt,
-    out ingress_headers_t  ig_hdr,
-    out ingress_metadata_t ig_md,
+    out ingress_headers_t  hdr,
+    out ingress_metadata_t umd,
     out ingress_intrinsic_metadata_t ig_intr_md)
 {
     state start {
-        // parser code begins here
+        pkt.extract(ig_intr_md);
+        transition parse_port_metadata;
+    }
+    state parse_port_metadata {
+        pkt.advance(PORT_METADATA_SIZE);
         transition parse_ethernet;
     }
     state parse_ethernet {
-        pkt.extract(ig_hdr.ethernet);
+        pkt.extract(hdr.ethernet);
         transition parse_ipv4;
     }
     state parse_ipv4 {
-        pkt.extract(ig_hdr.ipv4);
+        pkt.extract(hdr.ipv4);
         transition accept;
     }
 }
 
-control Ingress(
-    inout ingress_headers_t  ig_hdr,
-    inout ingress_metadata_t ig_md,
+control ingressImpl(
+    inout ingress_headers_t  hdr,
+    inout ingress_metadata_t umd,
     in    ingress_intrinsic_metadata_t              ig_intr_md,
     in    ingress_intrinsic_metadata_from_parser_t  ig_prsr_md,
     inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t       ig_tm_md)
 {
+    action unicast_to_port (PortId_t p) {
+        ig_tm_md.ucast_egress_port = p;
+    }
+    action my_drop () {
+        ig_dprsr_md.drop_ctl = 1;
+    }
+    table forward_by_destmac {
+        key = {
+            hdr.ethernet.dst_addr : exact;
+        }
+        actions = {
+            unicast_to_port;
+            my_drop;
+            NoAction;
+        }
+        const default_action = my_drop;
+        size = 1024;
+    }
+
     apply {
-        // ingress control code here
+        forward_by_destmac.apply();
     }
 }
 
-control IngressDeparser(
+control ingressDeparserImpl(
     packet_out pkt,
-    inout ingress_headers_t  ig_hdr,
-    in    ingress_metadata_t ig_md,
+    inout ingress_headers_t  hdr,
+    in    ingress_metadata_t umd,
     in    ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md)
 {
     apply {
-        // emit headers for out-of-ingress packets here
+        pkt.emit(hdr.bridge_md);
+        pkt.emit(hdr.ethernet);
     }
 }
 
-parser EgressParser(
+parser egressParserImpl(
     packet_in pkt,
-    out egress_headers_t  eg_hdr,
-    out egress_metadata_t eg_md,
+    out egress_headers_t  hdr,
+    out egress_metadata_t umd,
     out egress_intrinsic_metadata_t eg_intr_md)
 {
     state start {
-        // parser code begins here
+        pkt.extract(eg_intr_md);
+        transition parse_bridge_metadata;
+    }
+
+    state parse_bridge_metadata {
+        pkt.extract(hdr.bridge_md);
+        transition parse_ethernet;
+    }
+
+    state parse_ethernet {
+        pkt.extract(hdr.ethernet);
         transition accept;
     }
 }
 
-control Egress(
-    inout egress_headers_t  eg_hdr,
-    inout egress_metadata_t eg_md,
+control egressImpl(
+    inout egress_headers_t  hdr,
+    inout egress_metadata_t umd,
     in    egress_intrinsic_metadata_t                 eg_intr_md,
     in    egress_intrinsic_metadata_from_parser_t     eg_prsr_md,
     inout egress_intrinsic_metadata_for_deparser_t    eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t eg_oport_md)
 {
     apply {
-        // egress control code here
     }
 }
 
-control EgressDeparser(
+control egressDeparserImpl(
     packet_out pkt,
-    inout egress_headers_t  eg_hdr,
-    in    egress_metadata_t eg_md,
+    inout egress_headers_t  hdr,
+    in    egress_metadata_t umd,
     in    egress_intrinsic_metadata_for_deparser_t eg_dprsr_md)
 {
     apply {
-        // emit desired egress headers here
+        pkt.emit(hdr.ethernet);
     }
 }
 
-Pipeline(IngressParser(),
-         Ingress(),
-         IngressDeparser(),
-         EgressParser(),
-         Egress(),
-         EgressDeparser()) pipe;
+Pipeline(ingressParserImpl(),
+         ingressImpl(),
+         ingressDeparserImpl(),
+         egressParserImpl(),
+         egressImpl(),
+         egressDeparserImpl()) pipe;
 
 // In a multi-pipe Tofino device, the TNA package instantiation below
 // implies that the same P4 code behavior is loaded into all of the
