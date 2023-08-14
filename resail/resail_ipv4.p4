@@ -213,17 +213,14 @@ control ingressImpl(
     action get_bitstring_13(bitstring_t string) {
         umd.bitstring_13 = string;
     }
-    table forward_by_destmac {
+    table initial_lookup_table {
         key = {
-            hdr.ethernet.dst_addr : exact;
+            hdr.ipv4.dst_addr : lpm;
         }
         actions = {
-            unicast_to_port;
-            my_drop;
-            NoAction;
+            set_next_hop_index;
         }
-        const default_action = my_drop;
-        size = 1024;
+	    size = 1465;
     }
     table bitmask_table_24 {
         key = {
@@ -783,10 +780,84 @@ control ingressImpl(
         }
         size = 16384;
     }
-    
+    table bitstring_table_18 {
+        key = {
+            umd.bitstring_index_18 : exact;
+        }
+        actions = {
+            get_bitstring_18;
+        }
+        size = 8192;
+    }
+    table bitstring_table_17 {
+        key = {
+            umd.bitstring_index_17 : exact;
+        }
+        actions = {
+            get_bitstring_17;
+        }
+        size = 4096;
+    }
+    table bitstring_table_16 {
+        key = {
+            umd.bitstring_index_16 : exact;
+        }
+        actions = {
+            get_bitstring_16;
+        }
+        size = 2048;
+    }
+    table bitstring_table_15 {
+        key = {
+            umd.bitstring_index_15 : exact;
+        }
+        actions = {
+            get_bitstring_15;
+        }
+        size = 1024;
+    }
+    table bitstring_table_14 {
+        key = {
+            umd.bitstring_index_14 : exact;
+        }
+        actions = {
+            get_bitstring_14;
+        }
+        size = 512;
+    }
+    table bitstring_table_13 {
+        key = {
+            umd.bitstring_index_13 : exact;
+        }
+        actions = {
+            get_bitstring_13;
+        }
+        size = 256;
+    }
+    table hash_table {
+        key = {
+            meta.hash_key: exact;
+        }
+        actions = {
+            set_next_hop_index;
+        }
+	    size = 901619;
+    }
+    // table forward_by_destmac {
+    //     key = {
+    //         hdr.ethernet.dst_addr : exact;
+    //     }
+    //     actions = {
+    //         unicast_to_port;
+    //         my_drop;
+    //         NoAction;
+    //     }
+    //     const default_action = my_drop;
+    //     size = 1024;
+    // }
 
     apply {
-        forward_by_destmac.apply();
+        // forward_by_destmac.apply();
     }
 }
 
