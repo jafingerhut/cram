@@ -24,6 +24,7 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
+typedef bit<2> next_hop_index_t;
 typedef bit<32> bitmask_t;
 typedef bit<5> bitmask_index_t;
 typedef bit<32> bitstring_t;
@@ -47,6 +48,7 @@ struct egress_headers_t {
 
 struct ingress_metadata_t {
     // user-defined ingress metadata
+    next_hop_index_t next_hop_index;
     bitmask_t bitmask_24;
     bitmask_t bitmask_23;
     bitmask_t bitmask_22;
@@ -140,6 +142,9 @@ control ingressImpl(
     }
     action my_drop () {
         ig_dprsr_md.drop_ctl = 1;
+    }
+    action set_next_hop_index(next_hop_index_t nhi) {
+        umd.next_hop_index = nhi;
     }
     action get_bitmask_24(bitmask_t mask) {
         umd.bitmask_24 = mask;
