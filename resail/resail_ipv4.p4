@@ -30,7 +30,6 @@ typedef bit<5> bitmask_index_t;
 typedef bit<32> bitstring_t;
 typedef bit<19> bitstring_index_t;
 typedef bit<25> hash_key_t;
-// typedef bit<2>    nextHopIndex_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
@@ -98,7 +97,6 @@ struct ingress_metadata_t {
     bitstring_index_t bitstring_index_14;
     bitstring_index_t bitstring_index_13;
     hash_key_t hash_key;
-    // nextHopIndex_t   next_hop_index;
 }
 
 struct egress_metadata_t {
@@ -140,7 +138,7 @@ control ingressImpl(
     action unicast_to_port (PortId_t p) {
         ig_tm_md.ucast_egress_port = p;
     }
-    action my_drop () {
+    action drop_packet () {
         ig_dprsr_md.drop_ctl = 1;
     }
     action set_next_hop_index(next_hop_index_t nhi) {
@@ -841,12 +839,24 @@ control ingressImpl(
     }
     table hash_table {
         key = {
-            meta.hash_key: exact;
+            umd.hash_key : exact;
         }
         actions = {
             set_next_hop_index;
         }
 	    size = 901619;
+    }
+    table next_hop_table {
+        key = {  
+            umd.next_hop_index : exact;
+        }
+        actions = {
+            unicast_to_port;
+            drop;
+	        NoAction;
+        }
+        size = 5;
+	    default_action = NoAction();
     }
     // table forward_by_destmac {
     //     key = {
