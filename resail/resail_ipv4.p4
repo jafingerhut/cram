@@ -893,7 +893,9 @@ control ingressImpl(
             set_hash_key_15;
             set_hash_key_14;
             set_hash_key_13;
+            drop_packet;
         }
+        const default_action = drop_packet;
         const entries = {
             0x800 &&& 0x800 : set_hash_key_24();
             0x400 &&& 0xc00 : set_hash_key_23();
