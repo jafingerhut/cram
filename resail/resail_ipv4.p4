@@ -142,6 +142,7 @@ control ingressImpl(
     }
     action drop_packet() {
         ig_dprsr_md.drop_ctl = 1;
+        return;
     }
     action set_next_hop_index(next_hop_index_t nhi) {
         umd.next_hop_index = nhi;
@@ -217,6 +218,42 @@ control ingressImpl(
     }
     action get_bitstring_13(bitstring_t string) {
         umd.bitstring_13 = string;
+    }
+    action set_hash_key_24() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:8] ++ (bit<1>)1)) << 0;
+    }
+    action set_hash_key_23() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:9] ++ (bit<1>)1)) << 1;
+    }
+    action set_hash_key_22() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:10] ++ (bit<1>)1)) << 2;
+    }
+    action set_hash_key_21() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:11] ++ (bit<1>)1)) << 3;
+    }
+    action set_hash_key_20() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:12] ++ (bit<1>)1)) << 4;
+    }
+    action set_hash_key_19() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:13] ++ (bit<1>)1)) << 5;
+    }
+    action set_hash_key_18() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:14] ++ (bit<1>)1)) << 6;
+    }
+    action set_hash_key_17() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:15] ++ (bit<1>)1)) << 7;
+    }
+    action set_hash_key_16() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:16] ++ (bit<1>)1)) << 8;
+    }
+    action set_hash_key_15() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:17] ++ (bit<1>)1)) << 9;
+    }
+    action set_hash_key_14() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:18] ++ (bit<1>)1)) << 10;
+    }
+    action set_hash_key_13() {
+        umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:19] ++ (bit<1>)1)) << 11;
     }
     table initial_lookup_table {
         key = {
@@ -844,21 +881,32 @@ control ingressImpl(
             umd.hit_bitmap : ternary;
         }
         actions = {
-            set_hash_key;
+            set_hash_key_24;
+            set_hash_key_23;
+            set_hash_key_22;
+            set_hash_key_21;
+            set_hash_key_20;
+            set_hash_key_19;
+            set_hash_key_18;
+            set_hash_key_17;
+            set_hash_key_16;
+            set_hash_key_15;
+            set_hash_key_14;
+            set_hash_key_13;
         }
         const entries = {
-            0x800 &&& 0x800 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:8] ++ (bit<1>)1)) << 0);
-            0x400 &&& 0xc00 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:9] ++ (bit<1>)1)) << 1);
-            0x200 &&& 0xe00 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:10] ++ (bit<1>)1)) << 2);
-            0x100 &&& 0xf00 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:11] ++ (bit<1>)1)) << 3);
-            0x080 &&& 0xf80 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:12] ++ (bit<1>)1)) << 4);
-            0x040 &&& 0xfc0 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:13] ++ (bit<1>)1)) << 5);
-            0x020 &&& 0xfe0 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:14] ++ (bit<1>)1)) << 6);
-            0x010 &&& 0xff0 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:15] ++ (bit<1>)1)) << 7);
-            0x008 &&& 0xff8 : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:16] ++ (bit<1>)1)) << 8);
-            0x004 &&& 0xffc : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:17] ++ (bit<1>)1)) << 9);
-            0x002 &&& 0xffe : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:18] ++ (bit<1>)1)) << 10);
-            0x001 &&& 0xfff : set_hash_key(((bit<25>)(hdr.ipv4.dstAddr[31:19] ++ (bit<1>)1)) << 11);
+            0x800 &&& 0x800 : set_hash_key_24();
+            0x400 &&& 0xc00 : set_hash_key_23();
+            0x200 &&& 0xe00 : set_hash_key_22();
+            0x100 &&& 0xf00 : set_hash_key_21();
+            0x080 &&& 0xf80 : set_hash_key_20();
+            0x040 &&& 0xfc0 : set_hash_key_19();
+            0x020 &&& 0xfe0 : set_hash_key_18();
+            0x010 &&& 0xff0 : set_hash_key_17();
+            0x008 &&& 0xff8 : set_hash_key_16();
+            0x004 &&& 0xffc : set_hash_key_15();
+            0x002 &&& 0xffe : set_hash_key_14();
+            0x001 &&& 0xfff : set_hash_key_13();
         }
     }
     table hash_table {
@@ -886,73 +934,73 @@ control ingressImpl(
             umd.bitstring_index_24 = (bit<19>)(hdr.ipv4.dst_addr[31:8] / 32);
             bitmask_table_24.apply();
             bitstring_table_24.apply();
-            umd.hit_bitmap[11] = !!(umd.bitmask_24 & umd.bitstring_24);
+            umd.hit_bitmap[11] = (bit<1>)((umd.bitmask_24 & umd.bitstring_24) != 0);
 
 			umd.bitmask_index_23 = (bit<5>)(hdr.ipv4.dst_addr[31:9] % 32);
 			umd.bitstring_index_23 = (bit<19>)(hdr.ipv4.dst_addr[31:9] / 32);
 			bitmask_table_23.apply();
 			bitstring_table_23.apply();
-			umd.hit_bitmap[10] = !!(umd.bitmask_23 & umd.bitstring_23);
+			umd.hit_bitmap[10] = (bit<1>)((umd.bitmask_23 & umd.bitstring_23) != 0);
 
 			umd.bitmask_index_22 = (bit<5>)(hdr.ipv4.dst_addr[31:10] % 32);
 			umd.bitstring_index_22 = (bit<19>)(hdr.ipv4.dst_addr[31:10] / 32);
 			bitmask_table_22.apply();
 			bitstring_table_22.apply();
-			umd.hit_bitmap[9] = !!(umd.bitmask_22 & umd.bitstring_22);
+			umd.hit_bitmap[9] = (bit<1>)((umd.bitmask_22 & umd.bitstring_22) != 0);
 
 			umd.bitmask_index_21 = (bit<5>)(hdr.ipv4.dst_addr[31:11] % 32);
 			umd.bitstring_index_21 = (bit<19>)(hdr.ipv4.dst_addr[31:11] / 32);
 			bitmask_table_21.apply();
 			bitstring_table_21.apply();
-			umd.hit_bitmap[8] = !!(umd.bitmask_21 & umd.bitstring_21);
+			umd.hit_bitmap[8] = (bit<1>)((umd.bitmask_21 & umd.bitstring_21) != 0);
 
 			umd.bitmask_index_20 = (bit<5>)(hdr.ipv4.dst_addr[31:12] % 32);
 			umd.bitstring_index_20 = (bit<19>)(hdr.ipv4.dst_addr[31:12] / 32);
 			bitmask_table_20.apply();
 			bitstring_table_20.apply();
-			umd.hit_bitmap[7] = !!(umd.bitmask_20 & umd.bitstring_20);
+			umd.hit_bitmap[7] = (bit<1>)((umd.bitmask_20 & umd.bitstring_20) != 0);
 
 			umd.bitmask_index_19 = (bit<5>)(hdr.ipv4.dst_addr[31:13] % 32);
 			umd.bitstring_index_19 = (bit<19>)(hdr.ipv4.dst_addr[31:13] / 32);
 			bitmask_table_19.apply();
 			bitstring_table_19.apply();
-			umd.hit_bitmap[6] = !!(umd.bitmask_19 & umd.bitstring_19);
+			umd.hit_bitmap[6] = (bit<1>)((umd.bitmask_19 & umd.bitstring_19) != 0);
 
 			umd.bitmask_index_18 = (bit<5>)(hdr.ipv4.dst_addr[31:14] % 32);
 			umd.bitstring_index_18 = (bit<19>)(hdr.ipv4.dst_addr[31:14] / 32);
 			bitmask_table_18.apply();
 			bitstring_table_18.apply();
-			umd.hit_bitmap[5] = !!(umd.bitmask_18 & umd.bitstring_18);
+			umd.hit_bitmap[5] = (bit<1>)((umd.bitmask_18 & umd.bitstring_18) != 0);
 
 			umd.bitmask_index_17 = (bit<5>)(hdr.ipv4.dst_addr[31:15] % 32);
 			umd.bitstring_index_17 = (bit<19>)(hdr.ipv4.dst_addr[31:15] / 32);
 			bitmask_table_17.apply();
 			bitstring_table_17.apply();
-			umd.hit_bitmap[4] = !!(umd.bitmask_17 & umd.bitstring_17);
+			umd.hit_bitmap[4] = (bit<1>)((umd.bitmask_17 & umd.bitstring_17) != 0);
 
 			umd.bitmask_index_16 = (bit<5>)(hdr.ipv4.dst_addr[31:16] % 32);
 			umd.bitstring_index_16 = (bit<19>)(hdr.ipv4.dst_addr[31:16] / 32);
 			bitmask_table_16.apply();
 			bitstring_table_16.apply();
-			umd.hit_bitmap[3] = !!(umd.bitmask_16 & umd.bitstring_16);
+			umd.hit_bitmap[3] = (bit<1>)((umd.bitmask_16 & umd.bitstring_16) != 0);
 
 			umd.bitmask_index_15 = (bit<5>)(hdr.ipv4.dst_addr[31:17] % 32);
 			umd.bitstring_index_15 = (bit<19>)(hdr.ipv4.dst_addr[31:17] / 32);
 			bitmask_table_15.apply();
 			bitstring_table_15.apply();
-			umd.hit_bitmap[2] = !!(umd.bitmask_15 & umd.bitstring_15);
+			umd.hit_bitmap[2] = (bit<1>)((umd.bitmask_15 & umd.bitstring_15) != 0);
 
 			umd.bitmask_index_14 = (bit<5>)(hdr.ipv4.dst_addr[31:18] % 32);
 			umd.bitstring_index_14 = (bit<19>)(hdr.ipv4.dst_addr[31:18] / 32);
 			bitmask_table_14.apply();
 			bitstring_table_14.apply();
-			umd.hit_bitmap[1] = !!(umd.bitmask_14 & umd.bitstring_14);
+			umd.hit_bitmap[1] = (bit<1>)((umd.bitmask_14 & umd.bitstring_14) != 0);
 
 			umd.bitmask_index_13 = (bit<5>)(hdr.ipv4.dst_addr[31:19] % 32);
 			umd.bitstring_index_13 = (bit<19>)(hdr.ipv4.dst_addr[31:19] / 32);
 			bitmask_table_13.apply();
 			bitstring_table_13.apply();
-			umd.hit_bitmap[0] = !!(umd.bitmask_13 & umd.bitstring_13);
+			umd.hit_bitmap[0] = (bit<1>)((umd.bitmask_13 & umd.bitstring_13) != 0);
 
             key_table.apply();
             hash_table.apply();
