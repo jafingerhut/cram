@@ -183,41 +183,41 @@ control ingressImpl(
     action get_bitmask_13(bitmask_t mask) {
         umd.bitmask_13 = mask;
     }
-    action get_bitstring_24(bitstring_t string) {
-        umd.bitstring_24 = string;
+    action get_bitstring_24(bitstring_t bitstring) {
+        umd.bitstring_24 = bitstring;
     }
-    action get_bitstring_23(bitstring_t string) {
-        umd.bitstring_23 = string;
+    action get_bitstring_23(bitstring_t bitstring) {
+        umd.bitstring_23 = bitstring;
     }
-    action get_bitstring_22(bitstring_t string) {
-        umd.bitstring_22 = string;
+    action get_bitstring_22(bitstring_t bitstring) {
+        umd.bitstring_22 = bitstring;
     }
-    action get_bitstring_21(bitstring_t string) {
-        umd.bitstring_21 = string;
+    action get_bitstring_21(bitstring_t bitstring) {
+        umd.bitstring_21 = bitstring;
     }
-    action get_bitstring_20(bitstring_t string) {
-        umd.bitstring_20 = string;
+    action get_bitstring_20(bitstring_t bitstring) {
+        umd.bitstring_20 = bitstring;
     }
-    action get_bitstring_19(bitstring_t string) {
-        umd.bitstring_19 = string;
+    action get_bitstring_19(bitstring_t bitstring) {
+        umd.bitstring_19 = bitstring;
     }
-    action get_bitstring_18(bitstring_t string) {
-        umd.bitstring_18 = string;
+    action get_bitstring_18(bitstring_t bitstring) {
+        umd.bitstring_18 = bitstring;
     }
-    action get_bitstring_17(bitstring_t string) {
-        umd.bitstring_17 = string;
+    action get_bitstring_17(bitstring_t bitstring) {
+        umd.bitstring_17 = bitstring;
     }
-    action get_bitstring_16(bitstring_t string) {
-        umd.bitstring_16 = string;
+    action get_bitstring_16(bitstring_t bitstring) {
+        umd.bitstring_16 = bitstring;
     }
-    action get_bitstring_15(bitstring_t string) {
-        umd.bitstring_15 = string;
+    action get_bitstring_15(bitstring_t bitstring) {
+        umd.bitstring_15 = bitstring;
     }
-    action get_bitstring_14(bitstring_t string) {
-        umd.bitstring_14 = string;
+    action get_bitstring_14(bitstring_t bitstring) {
+        umd.bitstring_14 = bitstring;
     }
-    action get_bitstring_13(bitstring_t string) {
-        umd.bitstring_13 = string;
+    action get_bitstring_13(bitstring_t bitstring) {
+        umd.bitstring_13 = bitstring;
     }
     action set_hash_key_24() {
         umd.hash_key = ((bit<25>)(hdr.ipv4.dst_addr[31:8] ++ (bit<1>)1)) << 0;
@@ -936,73 +936,73 @@ control ingressImpl(
             umd.bitstring_index_24 = (bit<19>)(hdr.ipv4.dst_addr[31:8] / 32);
             bitmask_table_24.apply();
             bitstring_table_24.apply();
-            umd.hit_bitmap[11] = (bit<1>)((umd.bitmask_24 & umd.bitstring_24) != 0);
+            umd.hit_bitmap[11:11] = (bit<1>)((umd.bitmask_24 & umd.bitstring_24) != 0);
 
 			umd.bitmask_index_23 = (bit<5>)(hdr.ipv4.dst_addr[31:9] % 32);
 			umd.bitstring_index_23 = (bit<19>)(hdr.ipv4.dst_addr[31:9] / 32);
 			bitmask_table_23.apply();
 			bitstring_table_23.apply();
-			umd.hit_bitmap[10] = (bit<1>)((umd.bitmask_23 & umd.bitstring_23) != 0);
+			umd.hit_bitmap[10:10] = (bit<1>)((umd.bitmask_23 & umd.bitstring_23) != 0);
 
 			umd.bitmask_index_22 = (bit<5>)(hdr.ipv4.dst_addr[31:10] % 32);
 			umd.bitstring_index_22 = (bit<19>)(hdr.ipv4.dst_addr[31:10] / 32);
 			bitmask_table_22.apply();
 			bitstring_table_22.apply();
-			umd.hit_bitmap[9] = (bit<1>)((umd.bitmask_22 & umd.bitstring_22) != 0);
+			umd.hit_bitmap[9:9] = (bit<1>)((umd.bitmask_22 & umd.bitstring_22) != 0);
 
 			umd.bitmask_index_21 = (bit<5>)(hdr.ipv4.dst_addr[31:11] % 32);
 			umd.bitstring_index_21 = (bit<19>)(hdr.ipv4.dst_addr[31:11] / 32);
 			bitmask_table_21.apply();
 			bitstring_table_21.apply();
-			umd.hit_bitmap[8] = (bit<1>)((umd.bitmask_21 & umd.bitstring_21) != 0);
+			umd.hit_bitmap[8:8] = (bit<1>)((umd.bitmask_21 & umd.bitstring_21) != 0);
 
 			umd.bitmask_index_20 = (bit<5>)(hdr.ipv4.dst_addr[31:12] % 32);
 			umd.bitstring_index_20 = (bit<19>)(hdr.ipv4.dst_addr[31:12] / 32);
 			bitmask_table_20.apply();
 			bitstring_table_20.apply();
-			umd.hit_bitmap[7] = (bit<1>)((umd.bitmask_20 & umd.bitstring_20) != 0);
+			umd.hit_bitmap[7:7] = (bit<1>)((umd.bitmask_20 & umd.bitstring_20) != 0);
 
 			umd.bitmask_index_19 = (bit<5>)(hdr.ipv4.dst_addr[31:13] % 32);
 			umd.bitstring_index_19 = (bit<19>)(hdr.ipv4.dst_addr[31:13] / 32);
 			bitmask_table_19.apply();
 			bitstring_table_19.apply();
-			umd.hit_bitmap[6] = (bit<1>)((umd.bitmask_19 & umd.bitstring_19) != 0);
+			umd.hit_bitmap[6:6] = (bit<1>)((umd.bitmask_19 & umd.bitstring_19) != 0);
 
 			umd.bitmask_index_18 = (bit<5>)(hdr.ipv4.dst_addr[31:14] % 32);
 			umd.bitstring_index_18 = (bit<19>)(hdr.ipv4.dst_addr[31:14] / 32);
 			bitmask_table_18.apply();
 			bitstring_table_18.apply();
-			umd.hit_bitmap[5] = (bit<1>)((umd.bitmask_18 & umd.bitstring_18) != 0);
+			umd.hit_bitmap[5:5] = (bit<1>)((umd.bitmask_18 & umd.bitstring_18) != 0);
 
 			umd.bitmask_index_17 = (bit<5>)(hdr.ipv4.dst_addr[31:15] % 32);
 			umd.bitstring_index_17 = (bit<19>)(hdr.ipv4.dst_addr[31:15] / 32);
 			bitmask_table_17.apply();
 			bitstring_table_17.apply();
-			umd.hit_bitmap[4] = (bit<1>)((umd.bitmask_17 & umd.bitstring_17) != 0);
+			umd.hit_bitmap[4:4] = (bit<1>)((umd.bitmask_17 & umd.bitstring_17) != 0);
 
 			umd.bitmask_index_16 = (bit<5>)(hdr.ipv4.dst_addr[31:16] % 32);
 			umd.bitstring_index_16 = (bit<19>)(hdr.ipv4.dst_addr[31:16] / 32);
 			bitmask_table_16.apply();
 			bitstring_table_16.apply();
-			umd.hit_bitmap[3] = (bit<1>)((umd.bitmask_16 & umd.bitstring_16) != 0);
+			umd.hit_bitmap[3:3] = (bit<1>)((umd.bitmask_16 & umd.bitstring_16) != 0);
 
 			umd.bitmask_index_15 = (bit<5>)(hdr.ipv4.dst_addr[31:17] % 32);
 			umd.bitstring_index_15 = (bit<19>)(hdr.ipv4.dst_addr[31:17] / 32);
 			bitmask_table_15.apply();
 			bitstring_table_15.apply();
-			umd.hit_bitmap[2] = (bit<1>)((umd.bitmask_15 & umd.bitstring_15) != 0);
+			umd.hit_bitmap[2:2] = (bit<1>)((umd.bitmask_15 & umd.bitstring_15) != 0);
 
 			umd.bitmask_index_14 = (bit<5>)(hdr.ipv4.dst_addr[31:18] % 32);
 			umd.bitstring_index_14 = (bit<19>)(hdr.ipv4.dst_addr[31:18] / 32);
 			bitmask_table_14.apply();
 			bitstring_table_14.apply();
-			umd.hit_bitmap[1] = (bit<1>)((umd.bitmask_14 & umd.bitstring_14) != 0);
+			umd.hit_bitmap[1:1] = (bit<1>)((umd.bitmask_14 & umd.bitstring_14) != 0);
 
 			umd.bitmask_index_13 = (bit<5>)(hdr.ipv4.dst_addr[31:19] % 32);
 			umd.bitstring_index_13 = (bit<19>)(hdr.ipv4.dst_addr[31:19] / 32);
 			bitmask_table_13.apply();
 			bitstring_table_13.apply();
-			umd.hit_bitmap[0] = (bit<1>)((umd.bitmask_13 & umd.bitstring_13) != 0);
+			umd.hit_bitmap[0:0] = (bit<1>)((umd.bitmask_13 & umd.bitstring_13) != 0);
 
             key_table.apply();
             hash_table.apply();
