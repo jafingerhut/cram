@@ -26,7 +26,7 @@ limitations under the License.
 
 typedef bit<2> next_hop_index_t;
 typedef bit<32> bitstring_t;
-typedef bit<12> hit_bitmap_t;
+typedef bit<1> bitmap_hit_t;
 typedef bit<25> hash_key_t;
 typedef bit<25> hash_mask_t;
 
@@ -59,7 +59,18 @@ struct ingress_metadata_t {
     bitstring_t bitstring_15;
     bitstring_t bitstring_14;
     bitstring_t bitstring_13;
-    hit_bitmap_t hit_bitmap;
+    bitmap_hit_t bitmap_24_hit;
+    bitmap_hit_t bitmap_23_hit;
+    bitmap_hit_t bitmap_22_hit;
+    bitmap_hit_t bitmap_21_hit;
+    bitmap_hit_t bitmap_20_hit;
+    bitmap_hit_t bitmap_19_hit;
+    bitmap_hit_t bitmap_18_hit;
+    bitmap_hit_t bitmap_17_hit;
+    bitmap_hit_t bitmap_16_hit;
+    bitmap_hit_t bitmap_15_hit;
+    bitmap_hit_t bitmap_14_hit;
+    bitmap_hit_t bitmap_13_hit;
     hash_key_t hash_key;
     hash_mask_t hash_mask;
 }
@@ -868,7 +879,18 @@ control ingressImpl(
     }
     table hash_key_table {
         key = {
-            umd.hit_bitmap : ternary;
+            umd.bitmap_24_hit : ternary;
+            umd.bitmap_23_hit : ternary;
+            umd.bitmap_22_hit : ternary;
+            umd.bitmap_21_hit : ternary;
+            umd.bitmap_20_hit : ternary;
+            umd.bitmap_19_hit : ternary;
+            umd.bitmap_18_hit : ternary;
+            umd.bitmap_17_hit : ternary;
+            umd.bitmap_16_hit : ternary;
+            umd.bitmap_15_hit : ternary;
+            umd.bitmap_14_hit : ternary;
+            umd.bitmap_13_hit : ternary;
         }
         actions = {
             get_hash_key_24;
@@ -887,18 +909,18 @@ control ingressImpl(
         }
         const default_action = drop_packet;
         const entries = {
-            0x800 &&& 0x800 : get_hash_key_24();
-            0x400 &&& 0xc00 : get_hash_key_23();
-            0x200 &&& 0xe00 : get_hash_key_22();
-            0x100 &&& 0xf00 : get_hash_key_21();
-            0x080 &&& 0xf80 : get_hash_key_20();
-            0x040 &&& 0xfc0 : get_hash_key_19();
-            0x020 &&& 0xfe0 : get_hash_key_18();
-            0x010 &&& 0xff0 : get_hash_key_17();
-            0x008 &&& 0xff8 : get_hash_key_16();
-            0x004 &&& 0xffc : get_hash_key_15();
-            0x002 &&& 0xffe : get_hash_key_14();
-            0x001 &&& 0xfff : get_hash_key_13();
+            1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_24();
+            0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_23();
+            0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_22();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_21();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_20();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_19();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_18();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_17();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 : get_hash_key_16();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 , 0 &&& 0 : get_hash_key_15();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 , 0 &&& 0 : get_hash_key_14();
+            0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 0 &&& 0 , 1 &&& 1 : get_hash_key_13();
         }
         size = 12;
     }
@@ -909,7 +931,7 @@ control ingressImpl(
             apply_hash_mask;
         }
         const default_action = apply_hash_mask;
-        size = 1;
+        size = 0;
     }
     table hash_table {
         key = {
@@ -935,109 +957,109 @@ control ingressImpl(
             bitstring_table_24.apply();
             bitmask_table_24.apply();
             if (umd.bitstring_24 != 0) {
-                umd.hit_bitmap[11:11] = 1;
+                umd.bitmap_24_hit = 1;
             }
             else {
-                umd.hit_bitmap[11:11] = 0;
+                umd.bitmap_24_hit = 0;
             }
 
             bitstring_table_23.apply();
             bitmask_table_23.apply();
             if (umd.bitstring_23 != 0) {
-                umd.hit_bitmap[10:10] = 1;
+                umd.bitmap_23_hit = 1;
             }
             else {
-                umd.hit_bitmap[10:10] = 0;
+                umd.bitmap_23_hit = 0;
             }
 
             bitstring_table_22.apply();
             bitmask_table_22.apply();
             if (umd.bitstring_22 != 0) {
-                umd.hit_bitmap[9:9] = 1;
+                umd.bitmap_22_hit = 1;
             }
             else {
-                umd.hit_bitmap[9:9] = 0;
+                umd.bitmap_22_hit = 0;
             }
             
             bitstring_table_21.apply();
             bitmask_table_21.apply();
             if (umd.bitstring_21 != 0) {
-                umd.hit_bitmap[8:8] = 1;
+                umd.bitmap_21_hit = 1;
             }
             else {
-                umd.hit_bitmap[8:8] = 0;
+                umd.bitmap_21_hit = 0;
             }
             
             bitstring_table_20.apply();
             bitmask_table_20.apply();
             if (umd.bitstring_20 != 0) {
-                umd.hit_bitmap[7:7] = 1;
+                umd.bitmap_20_hit = 1;
             }
             else {
-                umd.hit_bitmap[7:7] = 0;
+                umd.bitmap_20_hit = 0;
             }
             
             bitstring_table_19.apply();
             bitmask_table_19.apply();
             if (umd.bitstring_19 != 0) {
-                umd.hit_bitmap[6:6] = 1;
+                umd.bitmap_19_hit = 1;
             }
             else {
-                umd.hit_bitmap[6:6] = 0;
+                umd.bitmap_19_hit = 0;
             }
             
             bitstring_table_18.apply();
             bitmask_table_18.apply();
             if (umd.bitstring_18 != 0) {
-                umd.hit_bitmap[5:5] = 1;
+                umd.bitmap_18_hit = 1;
             }
             else {
-                umd.hit_bitmap[5:5] = 0;
+                umd.bitmap_18_hit = 0;
             }
             
             bitstring_table_17.apply();
             bitmask_table_17.apply();
             if (umd.bitstring_17 != 0) {
-                umd.hit_bitmap[4:4] = 1;
+                umd.bitmap_17_hit = 1;
             }
             else {
-                umd.hit_bitmap[4:4] = 0;
+                umd.bitmap_17_hit = 0;
             }
             
             bitstring_table_16.apply();
             bitmask_table_16.apply();
             if (umd.bitstring_16 != 0) {
-                umd.hit_bitmap[3:3] = 1;
+                umd.bitmap_16_hit = 1;
             }
             else {
-                umd.hit_bitmap[3:3] = 0;
+                umd.bitmap_16_hit = 0;
             }
             
             bitstring_table_15.apply();
             bitmask_table_15.apply();
             if (umd.bitstring_15 != 0) {
-                umd.hit_bitmap[2:2] = 1;
+                umd.bitmap_15_hit = 1;
             }
             else {
-                umd.hit_bitmap[2:2] = 0;
+                umd.bitmap_15_hit = 0;
             }
 
             bitstring_table_14.apply();
             bitmask_table_14.apply();
             if (umd.bitstring_14 != 0) {
-                umd.hit_bitmap[1:1] = 1;
+                umd.bitmap_14_hit = 1;
             }
             else {
-                umd.hit_bitmap[1:1] = 0;
+                umd.bitmap_14_hit = 0;
             }
             
             bitstring_table_13.apply();
             bitmask_table_13.apply();
             if (umd.bitstring_13 != 0) {
-                umd.hit_bitmap[0:0] = 1;
+                umd.bitmap_13_hit = 1;
             }
             else {
-                umd.hit_bitmap[0:0] = 0;
+                umd.bitmap_13_hit = 0;
             }
             
             hash_key_table.apply();
