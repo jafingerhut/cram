@@ -20,7 +20,14 @@ limitations under the License.
 // with tna.p4 include file in Open-Tofino repository for syntax
 // checking.
 //#define __TARGET_TOFINO__ 1
+
+#ifdef TOFINO
+#include <tna.p4>
+#endif
+
+#ifdef TOFINO2
 #include <t2na.p4>
+#endif
 
 #include <stdheaders.p4>
 
