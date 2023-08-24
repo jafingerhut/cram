@@ -19,8 +19,8 @@ limitations under the License.
 // compiler.  It is only here to be able to use open source p4test
 // with tna.p4 include file in Open-Tofino repository for syntax
 // checking.
-#define __TARGET_TOFINO__ 1
-#include <tna.p4>
+//#define __TARGET_TOFINO__ 1
+#include <t2na.p4>
 
 #include <stdheaders.p4>
 
