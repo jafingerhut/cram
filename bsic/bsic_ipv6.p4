@@ -44,7 +44,7 @@ header bridge_metadata_t {
 struct ingress_headers_t {
     bridge_metadata_t bridge_md;
     ethernet_h ethernet;
-    ipv4_h ipv4;
+    ipv6_h ipv6;
 }
 
 struct egress_headers_t {
