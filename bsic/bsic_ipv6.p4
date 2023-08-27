@@ -108,7 +108,7 @@ control ingressImpl(
     action set_bst_index(bst_index_t bi) {
 	    umd.bst_index = bi;
     }
-    action node_decision(bit<(64-SLICE)> prefix, next_hop_index nhi, bst_index_t left_child, bst_index_t right_child) {
+    action node_decision(bit<(64-SLICE)> prefix, next_hop_index_t nhi, bst_index_t left_child, bst_index_t right_child) {
         if (hdr.ipv6.dst_addr[(128-SLICE-1):64] == prefix) {
             umd.next_hop_index = nhi;
             umd.bst_hit = 1;
