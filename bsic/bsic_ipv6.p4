@@ -31,7 +31,8 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-const bit<8> SLICE = 24;
+//const bit<8> SLICE = 24;
+const bit<8> SLICE = 32;   // temporary workaround
 const bit<16> NULL = 0;
 
 typedef bit<2> next_hop_index_t;
@@ -57,6 +58,15 @@ struct ingress_metadata_t {
     next_hop_index_t next_hop_index;
     bst_index_t bst_index;
     bst_hit_t bst_hit;
+    bit<(64-SLICE)> dst_addr_slice;
+    bit<(64-SLICE)> dst_addr_slice_plus_1;
+    bit<(64-SLICE)> prefix_minus_dst_addr;
+    bit<(64-SLICE)> prefix_minus_dst_addr_minus_1;
+    next_hop_index_t tmp_nhi;
+    bit<1> tmp_left_child_valid;
+    bst_index_t tmp_left_child;
+    bit<1> tmp_right_child_valid;
+    bst_index_t tmp_right_child;
 }
 
 struct egress_metadata_t {
@@ -108,28 +118,21 @@ control ingressImpl(
     action set_bst_index(bst_index_t bi) {
 	    umd.bst_index = bi;
     }
-    action node_decision(bit<(64-SLICE)> prefix, next_hop_index_t nhi, bst_index_t left_child, bst_index_t right_child) {
-        if (hdr.ipv6.dst_addr[(128-SLICE-1):64] == prefix) {
-            umd.next_hop_index = nhi;
-            umd.bst_hit = 1;
-        }
-        if (hdr.ipv6.dst_addr[(128-SLICE-1):64] < prefix) {
-            if (left_child == NULL) {
-                umd.bst_hit = 1;
-            }
-            else {
-                umd.bst_index = left_child;
-            }
-        }
-        if (hdr.ipv6.dst_addr[(128-SLICE-1):64] > prefix) {
-            umd.next_hop_index = nhi;
-            if (right_child == NULL) {
-                umd.bst_hit = 1;
-            }
-            else {
-                umd.bst_index = right_child;
-            }
-        }
+    action node_decision(
+        bit<(64-SLICE)> prefix,
+        next_hop_index_t nhi,
+        bit<1> left_child_valid,
+        bst_index_t left_child,
+        bit<1> right_child_valid,
+        bst_index_t right_child)
+    {
+        umd.prefix_minus_dst_addr = (prefix - umd.dst_addr_slice);
+        umd.prefix_minus_dst_addr_minus_1 = (prefix - umd.dst_addr_slice_plus_1);
+        umd.tmp_nhi = nhi;
+        umd.tmp_left_child_valid = left_child_valid;
+        umd.tmp_left_child = left_child;
+        umd.tmp_right_child_valid = right_child_valid;
+        umd.tmp_right_child = right_child;
     }
     table initial_lookup_table {
         key = {
@@ -281,51 +284,93 @@ control ingressImpl(
 
     apply {
         umd.bst_hit = 0;
+        umd.dst_addr_slice = hdr.ipv6.dst_addr[(128-SLICE-1):64];
+        umd.dst_addr_slice_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
         switch (initial_lookup_table.apply().action_run) {
             set_next_hop_index: {
                 umd.bst_hit = 1;
             }
 	        set_bst_index: {
                 bst_0_table.apply();
+
+                // First if condition below should be equivalent to
+                // (prefix == umd.dst_addr_slice)
+                // Second if condition below should be equivalent to
+                // (prefix < umd.dst_addr_slice)
+#define NODE_DECISION_CODE \
+                if ((umd.prefix_minus_dst_addr[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+                    umd.next_hop_index = umd.tmp_nhi; \
+                    umd.bst_hit = 1; \
+                } else if (umd.prefix_minus_dst_addr[64-SLICE-1:64-SLICE-1] == 1) { \
+                    umd.next_hop_index = umd.tmp_nhi; \
+                    if (umd.tmp_right_child_valid == 0) { \
+                        umd.bst_hit = 1; \
+                    } else { \
+                        umd.bst_index = umd.tmp_right_child; \
+                    } \
+                } else { \
+                    if (umd.tmp_left_child_valid == 0) { \
+                        umd.bst_hit = 1; \
+                    } else { \
+                        umd.bst_index = umd.tmp_left_child; \
+                    } \
+                }
+                NODE_DECISION_CODE
                 if (umd.bst_hit != 1) {
                     bst_1_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_2_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_3_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_4_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_5_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_6_table.apply();
+                    NODE_DECISION_CODE
                 }
+#undef TOO_MANY_STAGES
+#ifdef TOO_MANY_STAGES
                 if (umd.bst_hit != 1) {
                     bst_7_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_8_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_9_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_10_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_11_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_12_table.apply();
+                    NODE_DECISION_CODE
                 }
                 if (umd.bst_hit != 1) {
                     bst_13_table.apply();
+                    NODE_DECISION_CODE
                 }
+#endif  // TOO_MANY_STAGES
 	        }
             drop_packet: {
                 return;
