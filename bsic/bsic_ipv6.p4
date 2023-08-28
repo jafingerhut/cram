@@ -286,12 +286,12 @@ control ingressImpl(
             set_next_hop_index: {
                 umd.bst_hit = 1;
             }
-	        set_bst_index: {
+            set_bst_index: {
                 // First if condition below should be equivalent to
                 // (prefix == umd.dst_addr_prefix)
                 // Second if condition below should be equivalent to
                 // (prefix < umd.dst_addr_prefix)
-#define NODE_DECISION_CODE \
+                #define NODE_DECISION_CODE \
                 if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
                     umd.next_hop_index = umd.tmp_nhi; \
                     umd.bst_hit = 1; \
@@ -339,8 +339,8 @@ control ingressImpl(
                     bst_6_table.apply();
                     NODE_DECISION_CODE
                 }
-#undef TOO_MANY_STAGES
-#ifdef TOO_MANY_STAGES
+                #undef TOO_MANY_STAGES
+                #ifdef TOO_MANY_STAGES
                 if (umd.bst_hit != 1) {
                     bst_7_table.apply();
                     NODE_DECISION_CODE
@@ -369,7 +369,7 @@ control ingressImpl(
                     bst_13_table.apply();
                     NODE_DECISION_CODE
                 }
-#endif
+                #endif
 	        }
 	    }
         if (umd.bst_hit != 1) {
