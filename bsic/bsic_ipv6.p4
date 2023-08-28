@@ -31,9 +31,7 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-//const bit<8> SLICE = 24;
-const bit<8> SLICE = 32;   // temporary workaround
-const bit<16> NULL = 0;
+const bit<6> SLICE = 32;
 
 typedef bit<2> next_hop_index_t;
 typedef bit<16> bst_index_t;
@@ -58,15 +56,15 @@ struct ingress_metadata_t {
     next_hop_index_t next_hop_index;
     bst_index_t bst_index;
     bst_hit_t bst_hit;
-    bit<(64-SLICE)> dst_addr_slice;
-    bit<(64-SLICE)> dst_addr_slice_plus_1;
-    bit<(64-SLICE)> prefix_minus_dst_addr;
-    bit<(64-SLICE)> prefix_minus_dst_addr_minus_1;
     next_hop_index_t tmp_nhi;
-    bit<1> tmp_left_child_valid;
     bst_index_t tmp_left_child;
-    bit<1> tmp_right_child_valid;
     bst_index_t tmp_right_child;
+    bit<1> tmp_left_child_valid;
+    bit<1> tmp_right_child_valid;
+    bit<(64-SLICE)> dst_addr_prefix;
+    bit<(64-SLICE)> dst_addr_prefix_plus_1;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
 }
 
 struct egress_metadata_t {
@@ -118,25 +116,23 @@ control ingressImpl(
     action set_bst_index(bst_index_t bi) {
 	    umd.bst_index = bi;
     }
-    action node_decision(
-        bit<(64-SLICE)> prefix,
-        next_hop_index_t nhi,
-        bit<1> left_child_valid,
-        bst_index_t left_child,
-        bit<1> right_child_valid,
-        bst_index_t right_child)
-    {
-        umd.prefix_minus_dst_addr = (prefix - umd.dst_addr_slice);
-        umd.prefix_minus_dst_addr_minus_1 = (prefix - umd.dst_addr_slice_plus_1);
+    action node_decision(bit<(64-SLICE)> prefix,
+                        next_hop_index_t nhi,
+                        bst_index_t left_child,
+                        bst_index_t right_child,
+                        bit<1> left_child_valid,
+                        bit<1> right_child_valid) {
+        umd.prefix_minus_dst_addr_prefix = (prefix - umd.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - umd.dst_addr_prefix_plus_1);
         umd.tmp_nhi = nhi;
-        umd.tmp_left_child_valid = left_child_valid;
         umd.tmp_left_child = left_child;
-        umd.tmp_right_child_valid = right_child_valid;
         umd.tmp_right_child = right_child;
+        umd.tmp_left_child_valid = left_child_valid;
+        umd.tmp_right_child_valid = right_child_valid;
     }
     table initial_lookup_table {
         key = {
-            hdr.ipv6.dst_addr[127:64] : lpm;
+            hdr.ipv6.dst_addr[127:128-SLICE] : lpm;
         }
         actions = {
             set_next_hop_index;
@@ -284,37 +280,40 @@ control ingressImpl(
 
     apply {
         umd.bst_hit = 0;
-        umd.dst_addr_slice = hdr.ipv6.dst_addr[(128-SLICE-1):64];
-        umd.dst_addr_slice_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
+        umd.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
+        umd.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
         switch (initial_lookup_table.apply().action_run) {
             set_next_hop_index: {
                 umd.bst_hit = 1;
             }
 	        set_bst_index: {
-                bst_0_table.apply();
-
                 // First if condition below should be equivalent to
-                // (prefix == umd.dst_addr_slice)
+                // (prefix == umd.dst_addr_prefix)
                 // Second if condition below should be equivalent to
-                // (prefix < umd.dst_addr_slice)
+                // (prefix < umd.dst_addr_prefix)
 #define NODE_DECISION_CODE \
-                if ((umd.prefix_minus_dst_addr[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+                if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
                     umd.next_hop_index = umd.tmp_nhi; \
                     umd.bst_hit = 1; \
-                } else if (umd.prefix_minus_dst_addr[64-SLICE-1:64-SLICE-1] == 1) { \
+                } \
+                else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
                     umd.next_hop_index = umd.tmp_nhi; \
                     if (umd.tmp_right_child_valid == 0) { \
                         umd.bst_hit = 1; \
-                    } else { \
+                    } \
+                    else { \
                         umd.bst_index = umd.tmp_right_child; \
                     } \
-                } else { \
+                } \
+                else { \
                     if (umd.tmp_left_child_valid == 0) { \
                         umd.bst_hit = 1; \
-                    } else { \
+                    } \
+                    else { \
                         umd.bst_index = umd.tmp_left_child; \
                     } \
                 }
+                bst_0_table.apply();
                 NODE_DECISION_CODE
                 if (umd.bst_hit != 1) {
                     bst_1_table.apply();
@@ -370,14 +369,11 @@ control ingressImpl(
                     bst_13_table.apply();
                     NODE_DECISION_CODE
                 }
-#endif  // TOO_MANY_STAGES
+#endif
 	        }
-            drop_packet: {
-                return;
-            }
 	    }
         if (umd.bst_hit != 1) {
-            return;
+            drop_packet();
         }
         next_hop_table.apply();
     }
