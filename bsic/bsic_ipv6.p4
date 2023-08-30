@@ -39,6 +39,18 @@ typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
+    next_hop_index_t next_hop_index;
+    bst_index_t bst_index;
+    bst_hit_t bst_hit;
+    next_hop_index_t tmp_nhi;
+    bst_index_t tmp_left_child;
+    bst_index_t tmp_right_child;
+    bit<1> tmp_left_child_valid;
+    bit<1> tmp_right_child_valid;
+    bit<(64-SLICE)> dst_addr_prefix;
+    bit<(64-SLICE)> dst_addr_prefix_plus_1;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
 }
 
 struct ingress_headers_t {
@@ -69,6 +81,18 @@ struct ingress_metadata_t {
 
 struct egress_metadata_t {
     // user-defined egress metadata
+    next_hop_index_t next_hop_index;
+    bst_index_t bst_index;
+    bst_hit_t bst_hit;
+    next_hop_index_t tmp_nhi;
+    bst_index_t tmp_left_child;
+    bst_index_t tmp_right_child;
+    bit<1> tmp_left_child_valid;
+    bit<1> tmp_right_child_valid;
+    bit<(64-SLICE)> dst_addr_prefix;
+    bit<(64-SLICE)> dst_addr_prefix_plus_1;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
+    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
 }
 
 parser ingressParserImpl(
@@ -205,69 +229,6 @@ control ingressImpl(
         }
         size = 28756;
     }
-    table bst_7_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 35756;
-    }
-    table bst_8_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 34710;
-    }
-    table bst_9_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 32072;
-    }
-    table bst_10_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 31724;
-    }
-    table bst_11_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 29244;
-    }
-    table bst_12_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 10098;
-    }
-    table bst_13_table {
-        key = {
-            umd.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 2722;
-    }
     table next_hop_table {
         key = {  
             umd.next_hop_index : exact;
@@ -339,37 +300,6 @@ control ingressImpl(
                     bst_6_table.apply();
                     NODE_DECISION_CODE
                 }
-#undef TOO_MANY_STAGES
-#ifdef TOO_MANY_STAGES
-                if (umd.bst_hit != 1) {
-                    bst_7_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_8_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_9_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_10_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_11_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_12_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_13_table.apply();
-                    NODE_DECISION_CODE
-                }
-#endif
 	        }
 	    }
         if (umd.bst_hit != 1) {
@@ -417,7 +347,167 @@ control egressImpl(
     inout egress_intrinsic_metadata_for_deparser_t    eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t eg_oport_md)
 {
+    action unicast_to_port(PortId_t p) {
+        ig_tm_md.ucast_egress_port = p;
+    }
+    action drop_packet() {
+        ig_dprsr_md.drop_ctl = 1;
+        return;
+    }
+    action set_next_hop_index(next_hop_index_t nhi) {
+        umd.next_hop_index = nhi;
+    }
+    action set_bst_index(bst_index_t bi) {
+	    umd.bst_index = bi;
+    }
+    action node_decision(bit<(64-SLICE)> prefix,
+                        next_hop_index_t nhi,
+                        bst_index_t left_child,
+                        bst_index_t right_child,
+                        bit<1> left_child_valid,
+                        bit<1> right_child_valid) {
+        umd.prefix_minus_dst_addr_prefix = (prefix - umd.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - umd.dst_addr_prefix_plus_1);
+        umd.tmp_nhi = nhi;
+        umd.tmp_left_child = left_child;
+        umd.tmp_right_child = right_child;
+        umd.tmp_left_child_valid = left_child_valid;
+        umd.tmp_right_child_valid = right_child_valid;
+    }
+    table bst_7_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 35756;
+    }
+    table bst_8_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 34710;
+    }
+    table bst_9_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 32072;
+    }
+    table bst_10_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 31724;
+    }
+    table bst_11_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 29244;
+    }
+    table bst_12_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 10098;
+    }
+    table bst_13_table {
+        key = {
+            umd.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 2722;
+    }
+
     apply {
+        umd.bst_hit = 0;
+        umd.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
+        umd.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
+        switch (initial_lookup_table.apply().action_run) {
+            set_next_hop_index: {
+                umd.bst_hit = 1;
+            }
+            set_bst_index: {
+                // First if condition below should be equivalent to
+                // (prefix == umd.dst_addr_prefix)
+                // Second if condition below should be equivalent to
+                // (prefix < umd.dst_addr_prefix)
+#define NODE_DECISION_CODE \
+                if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+                    umd.next_hop_index = umd.tmp_nhi; \
+                    umd.bst_hit = 1; \
+                } \
+                else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
+                    umd.next_hop_index = umd.tmp_nhi; \
+                    if (umd.tmp_right_child_valid == 0) { \
+                        umd.bst_hit = 1; \
+                    } \
+                    else { \
+                        umd.bst_index = umd.tmp_right_child; \
+                    } \
+                } \
+                else { \
+                    if (umd.tmp_left_child_valid == 0) { \
+                        umd.bst_hit = 1; \
+                    } \
+                    else { \
+                        umd.bst_index = umd.tmp_left_child; \
+                    } \
+                }
+                if (umd.bst_hit != 1) {
+                    bst_7_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_8_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_9_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_10_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_11_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_12_table.apply();
+                    NODE_DECISION_CODE
+                }
+                if (umd.bst_hit != 1) {
+                    bst_13_table.apply();
+                    NODE_DECISION_CODE
+                }
+#endif
+	        }
+	    }
+        if (umd.bst_hit != 1) {
+            drop_packet();
+        }
+        next_hop_table.apply();
     }
 }
 
