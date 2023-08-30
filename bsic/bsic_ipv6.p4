@@ -32,6 +32,7 @@ limitations under the License.
 #include <stdheaders.p4>
 
 const bit<6> SLICE = 32;
+const PortId_t LOOPBACK_PORT = 5;
 
 typedef bit<2> next_hop_index_t;
 typedef bit<16> bst_index_t;
@@ -39,35 +40,40 @@ typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
-    next_hop_index_t next_hop_index;
-    bst_index_t bst_index;
+    // next_hop_index_t next_hop_index;
+    // bst_index_t bst_index;
     bst_hit_t bst_hit;
-    next_hop_index_t tmp_nhi;
-    bst_index_t tmp_left_child;
-    bst_index_t tmp_right_child;
-    bit<1> tmp_left_child_valid;
-    bit<1> tmp_right_child_valid;
-    bit<(64-SLICE)> dst_addr_prefix;
-    bit<(64-SLICE)> dst_addr_prefix_plus_1;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
+    // next_hop_index_t tmp_nhi;
+    // bst_index_t tmp_left_child;
+    // bst_index_t tmp_right_child;
+    // bit<1> tmp_left_child_valid;
+    // bit<1> tmp_right_child_valid;
+    // bit<(64-SLICE)> dst_addr_prefix;
+    // bit<(64-SLICE)> dst_addr_prefix_plus_1;
+    // bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
+    // bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
+}
+
+header loopback_h {
+    PortId_t chosen_port;
 }
 
 struct ingress_headers_t {
     bridge_metadata_t bridge_md;
+    loopback_h loopback;
     ethernet_h ethernet;
     ipv6_h ipv6;
 }
 
 struct egress_headers_t {
     bridge_metadata_t bridge_md;
+    loopback_h loopback;
 }
 
 struct ingress_metadata_t {
     // user-defined ingress metadata
     next_hop_index_t next_hop_index;
     bst_index_t bst_index;
-    bst_hit_t bst_hit;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
@@ -83,7 +89,6 @@ struct egress_metadata_t {
     // user-defined egress metadata
     next_hop_index_t next_hop_index;
     bst_index_t bst_index;
-    bst_hit_t bst_hit;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
@@ -107,6 +112,17 @@ parser ingressParserImpl(
     }
     state parse_port_metadata {
         pkt.advance(PORT_METADATA_SIZE);
+        transition parse_if_loopback;
+    }
+    state parse_if_loopback {
+        transition select (ig_intr_md.ingress_port) {
+            LOOPBACK_PORT : parse_lookback;
+            default : parse_ethernet;
+        }
+    }
+    state parse_lookback {
+        pkt.extract(hdr.lookback);
+        //hdr.lookback.isValid() - returns true if header is valid at time you make call, extract successfully will set validity true, default false
         transition parse_ethernet;
     }
     state parse_ethernet {
@@ -240,12 +256,12 @@ control ingressImpl(
     }
 
     apply {
-        umd.bst_hit = 0;
+        hdr.bridge_md.bst_hit = 0;
         umd.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
         umd.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
         switch (initial_lookup_table.apply().action_run) {
             set_next_hop_index: {
-                umd.bst_hit = 1;
+                hdr.bridge_md.bst_hit = 1;
             }
             set_bst_index: {
                 // First if condition below should be equivalent to
@@ -302,10 +318,10 @@ control ingressImpl(
                 }
 	        }
 	    }
-        if (umd.bst_hit != 1) {
-            drop_packet();
-        }
-        next_hop_table.apply();
+        // if (umd.bst_hit != 1) {
+        //     drop_packet();
+        // }
+        // next_hop_table.apply();
     }
 }
 
@@ -347,6 +363,10 @@ control egressImpl(
     inout egress_intrinsic_metadata_for_deparser_t    eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t eg_oport_md)
 {
+    // check eg_intr_md output port set from ingress and compare to loopback port, if same, keep processing, if diff, noop
+    // hdr.loopback.setValid()
+    // hdr.loopback.chosen_part = 
+    // need to set header to valid because you want to emit that header, emit looks at valid bit and is no op if not valid
     action unicast_to_port(PortId_t p) {
         ig_tm_md.ucast_egress_port = p;
     }
@@ -518,6 +538,8 @@ control egressDeparserImpl(
     in    egress_intrinsic_metadata_for_deparser_t eg_dprsr_md)
 {
     apply {
+        //emit new custom field storing output port
+        pkt.emit(hdr.lookback);
     }
 }
 
