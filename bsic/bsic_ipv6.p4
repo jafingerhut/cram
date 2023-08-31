@@ -107,7 +107,6 @@ parser ingressParserImpl(
     }
     state parse_lookback {
         pkt.extract(hdr.lookback);
-        //hdr.lookback.isValid() - returns true if header is valid at time you make call, extract successfully will set validity true, default false
         transition parse_ethernet;
     }
     state parse_ethernet {
@@ -128,18 +127,18 @@ control ingressImpl(
     inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
     inout ingress_intrinsic_metadata_for_tm_t       ig_tm_md)
 {
-    action unicast_to_port(PortId_t p) {
-        ig_tm_md.ucast_egress_port = p;
-    }
     action drop_packet() {
         ig_dprsr_md.drop_ctl = 1;
         return;
     }
+    action unicast_to_port(PortId_t p) {
+        ig_tm_md.ucast_egress_port = p;
+    }
     action set_next_hop_index(next_hop_index_t nhi) {
-        umd.next_hop_index = nhi;
+        hdr.bridge_md.next_hop_index = nhi;
     }
     action set_bst_index(bst_index_t bi) {
-	    umd.bst_index = bi;
+	    hdr.bridge_md.bst_index = bi;
     }
     action node_decision(bit<(64-SLICE)> prefix,
                         next_hop_index_t nhi,
@@ -147,8 +146,8 @@ control ingressImpl(
                         bst_index_t right_child,
                         bit<1> left_child_valid,
                         bit<1> right_child_valid) {
-        umd.prefix_minus_dst_addr_prefix = (prefix - umd.dst_addr_prefix);
-        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - umd.dst_addr_prefix_plus_1);
+        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
@@ -164,12 +163,12 @@ control ingressImpl(
             set_bst_index;
             drop_packet;
         }
-        const default_action = drop_packet;
+        const default action = drop_packet;
 	    size = 6888;
     }
     table bst_0_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -178,7 +177,7 @@ control ingressImpl(
     }
     table bst_1_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -187,7 +186,7 @@ control ingressImpl(
     }
     table bst_2_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -196,7 +195,7 @@ control ingressImpl(
     }
     table bst_3_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -205,7 +204,7 @@ control ingressImpl(
     }
     table bst_4_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -214,7 +213,7 @@ control ingressImpl(
     }
     table bst_5_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -223,90 +222,83 @@ control ingressImpl(
     }
     table bst_6_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
         }
         size = 28756;
     }
-    table next_hop_table {
-        key = {  
-            umd.next_hop_index : exact;
-        }
-        actions = {
-            unicast_to_port;
-        }
-        size = 4;
-    }
 
     apply {
-        hdr.bridge_md.bst_hit = 0;
-        umd.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
-        umd.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
-        switch (initial_lookup_table.apply().action_run) {
-            set_next_hop_index: {
-                hdr.bridge_md.bst_hit = 1;
-            }
-            set_bst_index: {
-                // First if condition below should be equivalent to
-                // (prefix == umd.dst_addr_prefix)
-                // Second if condition below should be equivalent to
-                // (prefix < umd.dst_addr_prefix)
+        if (hdr.lookback.isValid()) {
+            unicast_to_port(hdr.lookback.chosen_port);
+        }
+        else{
+            unicast_to_port(LOOPBACK_PORT);
+            hdr.bridge_md.bst_hit = 0;
+            hdr.bridge_md.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
+            hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
+            switch (initial_lookup_table.apply().action_run) {
+                set_next_hop_index: {
+                    hdr.bridge_md.bst_hit = 1;
+                }
+                set_bst_index: {
+                    // First if condition below should be equivalent to
+                    // (prefix == dst_addr_prefix)
+                    // Second if condition below should be equivalent to
+                    // (prefix < dst_addr_prefix)
 #define NODE_DECISION_CODE \
-                if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
-                    umd.next_hop_index = umd.tmp_nhi; \
-                    umd.bst_hit = 1; \
-                } \
-                else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
-                    umd.next_hop_index = umd.tmp_nhi; \
-                    if (umd.tmp_right_child_valid == 0) { \
-                        umd.bst_hit = 1; \
+                    if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        hdr.bridge_md.bst_hit = 1; \
+                    } \
+                    else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        if (umd.tmp_right_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
+                        } \
                     } \
                     else { \
-                        umd.bst_index = umd.tmp_right_child; \
-                    } \
-                } \
-                else { \
-                    if (umd.tmp_left_child_valid == 0) { \
-                        umd.bst_hit = 1; \
-                    } \
-                    else { \
-                        umd.bst_index = umd.tmp_left_child; \
-                    } \
-                }
-                bst_0_table.apply();
-                NODE_DECISION_CODE
-                if (umd.bst_hit != 1) {
-                    bst_1_table.apply();
+                        if (umd.tmp_left_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
+                        } \
+                    }
+                    bst_0_table.apply();
                     NODE_DECISION_CODE
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_1_table.apply();
+                        NODE_DECISION_CODE
+                    }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_2_table.apply();
+                        NODE_DECISION_CODE
+                    }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_3_table.apply();
+                        NODE_DECISION_CODE
+                    }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_4_table.apply();
+                        NODE_DECISION_CODE
+                    }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_5_table.apply();
+                        NODE_DECISION_CODE
+                    }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_6_table.apply();
+                        NODE_DECISION_CODE
+                    }
                 }
-                if (umd.bst_hit != 1) {
-                    bst_2_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_3_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_4_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_5_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_6_table.apply();
-                    NODE_DECISION_CODE
-                }
-	        }
-	    }
-        // if (umd.bst_hit != 1) {
-        //     drop_packet();
-        // }
-        // next_hop_table.apply();
+            }
+        }
     }
 }
 
@@ -348,22 +340,12 @@ control egressImpl(
     inout egress_intrinsic_metadata_for_deparser_t    eg_dprsr_md,
     inout egress_intrinsic_metadata_for_output_port_t eg_oport_md)
 {
-    // check eg_intr_md output port set from ingress and compare to loopback port, if same, keep processing, if diff, noop
-    // hdr.loopback.setValid()
-    // hdr.loopback.chosen_part = 
-    // need to set header to valid because you want to emit that header, emit looks at valid bit and is no op if not valid
-    action unicast_to_port(PortId_t p) {
-        ig_tm_md.ucast_egress_port = p;
-    }
     action drop_packet() {
-        ig_dprsr_md.drop_ctl = 1;
+        eg_dprsr_md.drop_ctl = 1;
         return;
     }
-    action set_next_hop_index(next_hop_index_t nhi) {
-        umd.next_hop_index = nhi;
-    }
-    action set_bst_index(bst_index_t bi) {
-	    umd.bst_index = bi;
+    action set_loopback_port(PortId_t p) {
+        hdr.loopback.chosen_port = p;
     }
     action node_decision(bit<(64-SLICE)> prefix,
                         next_hop_index_t nhi,
@@ -371,8 +353,8 @@ control egressImpl(
                         bst_index_t right_child,
                         bit<1> left_child_valid,
                         bit<1> right_child_valid) {
-        umd.prefix_minus_dst_addr_prefix = (prefix - umd.dst_addr_prefix);
-        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - umd.dst_addr_prefix_plus_1);
+        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
@@ -381,7 +363,7 @@ control egressImpl(
     }
     table bst_7_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -390,7 +372,7 @@ control egressImpl(
     }
     table bst_8_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -399,7 +381,7 @@ control egressImpl(
     }
     table bst_9_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -408,7 +390,7 @@ control egressImpl(
     }
     table bst_10_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -417,7 +399,7 @@ control egressImpl(
     }
     table bst_11_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -426,7 +408,7 @@ control egressImpl(
     }
     table bst_12_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
@@ -435,84 +417,86 @@ control egressImpl(
     }
     table bst_13_table {
         key = {
-            umd.bst_index : exact;
+            hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
         }
         size = 2722;
     }
+    table next_hop_table {
+        key = {  
+            hdr.bridge_md.next_hop_index : exact;
+        }
+        actions = {
+            set_loopback_port;
+        }
+        size = 4;
+    }
 
     apply {
-        umd.bst_hit = 0;
-        umd.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
-        umd.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
-        switch (initial_lookup_table.apply().action_run) {
-            set_next_hop_index: {
-                umd.bst_hit = 1;
-            }
-            set_bst_index: {
-                // First if condition below should be equivalent to
-                // (prefix == umd.dst_addr_prefix)
-                // Second if condition below should be equivalent to
-                // (prefix < umd.dst_addr_prefix)
+        // First if condition below should be equivalent to
+        // (prefix == dst_addr_prefix)
+        // Second if condition below should be equivalent to
+        // (prefix < dst_addr_prefix)
 #define NODE_DECISION_CODE \
-                if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
-                    umd.next_hop_index = umd.tmp_nhi; \
-                    umd.bst_hit = 1; \
-                } \
-                else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
-                    umd.next_hop_index = umd.tmp_nhi; \
-                    if (umd.tmp_right_child_valid == 0) { \
-                        umd.bst_hit = 1; \
-                    } \
-                    else { \
-                        umd.bst_index = umd.tmp_right_child; \
-                    } \
-                } \
-                else { \
-                    if (umd.tmp_left_child_valid == 0) { \
-                        umd.bst_hit = 1; \
-                    } \
-                    else { \
-                        umd.bst_index = umd.tmp_left_child; \
-                    } \
-                }
-                if (umd.bst_hit != 1) {
-                    bst_7_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_8_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_9_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_10_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_11_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_12_table.apply();
-                    NODE_DECISION_CODE
-                }
-                if (umd.bst_hit != 1) {
-                    bst_13_table.apply();
-                    NODE_DECISION_CODE
-                }
-#endif
-	        }
-	    }
-        if (umd.bst_hit != 1) {
-            drop_packet();
+        if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+            hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+            hdr.bridge_md.bst_hit = 1; \
+        } \
+        else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
+            hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+            if (umd.tmp_right_child_valid == 0) { \
+                hdr.bridge_md.bst_hit = 1; \
+            } \
+            else { \
+                hdr.bridge_md.bst_index = umd.tmp_right_child; \
+            } \
+        } \
+        else { \
+            if (umd.tmp_left_child_valid == 0) { \
+                hdr.bridge_md.bst_hit = 1; \
+            } \
+            else { \
+                hdr.bridge_md.bst_index = umd.tmp_left_child; \
+            } \
         }
-        next_hop_table.apply();
+        if (eg_intr_md.egress_port == LOOPBACK_PORT) {
+            // need to set header to valid because emit depends on the valid bit
+            hdr.loopback.setValid();
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_7_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_8_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_9_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_10_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_11_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_12_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_13_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                drop_packet();
+            }
+            next_hop_table.apply();
+        }
     }
 }
 
@@ -523,7 +507,6 @@ control egressDeparserImpl(
     in    egress_intrinsic_metadata_for_deparser_t eg_dprsr_md)
 {
     apply {
-        //emit new custom field storing output port
         pkt.emit(hdr.lookback);
     }
 }
