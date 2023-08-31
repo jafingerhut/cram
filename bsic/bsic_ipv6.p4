@@ -31,7 +31,7 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-const bit<6> SLICE = 32;
+const bit<8> SLICE = 32;
 const PortId_t LOOPBACK_PORT = 5;
 
 typedef bit<2> next_hop_index_t;
@@ -163,7 +163,7 @@ control ingressImpl(
             set_bst_index;
             drop_packet;
         }
-        const default action = drop_packet;
+        const default_action = drop_packet;
 	    size = 6888;
     }
     table bst_0_table {
