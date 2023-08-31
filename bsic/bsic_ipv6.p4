@@ -435,32 +435,6 @@ control egressImpl(
     }
 
     apply {
-        // First if condition below should be equivalent to
-        // (prefix == dst_addr_prefix)
-        // Second if condition below should be equivalent to
-        // (prefix < dst_addr_prefix)
-#define NODE_DECISION_CODE \
-        if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
-            hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-            hdr.bridge_md.bst_hit = 1; \
-        } \
-        else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
-            hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-            if (umd.tmp_right_child_valid == 0) { \
-                hdr.bridge_md.bst_hit = 1; \
-            } \
-            else { \
-                hdr.bridge_md.bst_index = umd.tmp_right_child; \
-            } \
-        } \
-        else { \
-            if (umd.tmp_left_child_valid == 0) { \
-                hdr.bridge_md.bst_hit = 1; \
-            } \
-            else { \
-                hdr.bridge_md.bst_index = umd.tmp_left_child; \
-            } \
-        }
         if (eg_intr_md.egress_port == LOOPBACK_PORT) {
             // need to set header to valid because emit depends on the valid bit
             hdr.loopback.setValid();
