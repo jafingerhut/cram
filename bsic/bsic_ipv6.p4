@@ -40,18 +40,11 @@ typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
-    // next_hop_index_t next_hop_index;
-    // bst_index_t bst_index;
+    next_hop_index_t next_hop_index;
+    bst_index_t bst_index;
     bst_hit_t bst_hit;
-    // next_hop_index_t tmp_nhi;
-    // bst_index_t tmp_left_child;
-    // bst_index_t tmp_right_child;
-    // bit<1> tmp_left_child_valid;
-    // bit<1> tmp_right_child_valid;
-    // bit<(64-SLICE)> dst_addr_prefix;
-    // bit<(64-SLICE)> dst_addr_prefix_plus_1;
-    // bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
-    // bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
+    bit<(64-SLICE)> dst_addr_prefix;
+    bit<(64-SLICE)> dst_addr_prefix_plus_1;
 }
 
 header loopback_h {
@@ -72,30 +65,22 @@ struct egress_headers_t {
 
 struct ingress_metadata_t {
     // user-defined ingress metadata
-    next_hop_index_t next_hop_index;
-    bst_index_t bst_index;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(64-SLICE)> dst_addr_prefix;
-    bit<(64-SLICE)> dst_addr_prefix_plus_1;
     bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
     bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
 }
 
 struct egress_metadata_t {
     // user-defined egress metadata
-    next_hop_index_t next_hop_index;
-    bst_index_t bst_index;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(64-SLICE)> dst_addr_prefix;
-    bit<(64-SLICE)> dst_addr_prefix_plus_1;
     bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
     bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
 }
