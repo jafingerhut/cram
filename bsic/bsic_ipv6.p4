@@ -101,12 +101,12 @@ parser ingressParserImpl(
     }
     state parse_if_loopback {
         transition select (ig_intr_md.ingress_port) {
-            LOOPBACK_PORT : parse_lookback;
+            LOOPBACK_PORT : parse_loopback;
             default : parse_ethernet;
         }
     }
-    state parse_lookback {
-        pkt.extract(hdr.lookback);
+    state parse_loopback {
+        pkt.extract(hdr.loopback);
         transition parse_ethernet;
     }
     state parse_ethernet {
@@ -231,8 +231,8 @@ control ingressImpl(
     }
 
     apply {
-        if (hdr.lookback.isValid()) {
-            unicast_to_port(hdr.lookback.chosen_port);
+        if (hdr.loopback.isValid()) {
+            unicast_to_port(hdr.loopback.chosen_port);
         }
         else{
             unicast_to_port(LOOPBACK_PORT);
@@ -481,7 +481,7 @@ control egressDeparserImpl(
     in    egress_intrinsic_metadata_for_deparser_t eg_dprsr_md)
 {
     apply {
-        pkt.emit(hdr.lookback);
+        pkt.emit(hdr.loopback);
     }
 }
 
