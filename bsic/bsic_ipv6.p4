@@ -42,15 +42,15 @@ header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
     next_hop_index_t next_hop_index;
     bst_hit_t bst_hit;
-    bit<13> rsvd0;
     bst_index_t bst_index;
     bit<(64-SLICE)> dst_addr_prefix;
     bit<(64-SLICE)> dst_addr_prefix_plus_1;
+    bit<5> rsvd0;
 }
 
 header loopback_h {
-    bit<7> rsvd0;
     PortId_t chosen_port;
+    bit<7> rsvd0;
 }
 
 struct ingress_headers_t {
