@@ -41,13 +41,15 @@ typedef bit<1> bst_hit_t;
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
     next_hop_index_t next_hop_index;
-    bst_index_t bst_index;
     bst_hit_t bst_hit;
+    bit<13> rsvd0;
+    bst_index_t bst_index;
     bit<(64-SLICE)> dst_addr_prefix;
     bit<(64-SLICE)> dst_addr_prefix_plus_1;
 }
 
 header loopback_h {
+    bit<7> rsvd0;
     PortId_t chosen_port;
 }
 
@@ -229,6 +231,15 @@ control ingressImpl(
         }
         size = 28756;
     }
+    table bst_7_table {
+        key = {
+            hdr.bridge_md.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 35756;
+    }
 
     apply {
         if (hdr.loopback.isValid()) {
@@ -296,6 +307,10 @@ control ingressImpl(
                         bst_6_table.apply();
                         NODE_DECISION_CODE
                     }
+                    if (hdr.bridge_md.bst_hit != 1) {
+                        bst_7_table.apply();
+                        NODE_DECISION_CODE
+                    }
                 }
             }
         }
@@ -360,15 +375,6 @@ control egressImpl(
         umd.tmp_right_child = right_child;
         umd.tmp_left_child_valid = left_child_valid;
         umd.tmp_right_child_valid = right_child_valid;
-    }
-    table bst_7_table {
-        key = {
-            hdr.bridge_md.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 35756;
     }
     table bst_8_table {
         key = {
@@ -438,10 +444,6 @@ control egressImpl(
         if (eg_intr_md.egress_port == LOOPBACK_PORT) {
             // need to set header to valid because emit depends on the valid bit
             hdr.loopback.setValid();
-            if (hdr.bridge_md.bst_hit != 1) {
-                bst_7_table.apply();
-                NODE_DECISION_CODE
-            }
             if (hdr.bridge_md.bst_hit != 1) {
                 bst_8_table.apply();
                 NODE_DECISION_CODE
