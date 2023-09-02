@@ -947,7 +947,7 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 901619;
+	    size = 933727;
     }
     table next_hop_table {
         key = {  
