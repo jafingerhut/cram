@@ -258,7 +258,7 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 1465;
+	    size = 804;
     }
     table bitmask_table_24 {
         key = {
@@ -931,15 +931,6 @@ control ingressImpl(
         }
         size = 13;
     }
-    table hash_mask_table {
-        key = {
-        }
-        actions = {
-            apply_hash_mask;
-        }
-        const default_action = apply_hash_mask;
-        size = 1;
-    }
     table hash_table {
         key = {
             umd.hash_key : exact;
@@ -1070,7 +1061,7 @@ control ingressImpl(
             }
             
             hash_key_table.apply();
-            hash_mask_table.apply();
+            apply_hash_mask();
             hash_table.apply();
         }
         next_hop_table.apply();
