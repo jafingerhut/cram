@@ -258,7 +258,7 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 804;
+	    size = 801;
     }
     table bitmask_table_24 {
         key = {
@@ -938,7 +938,7 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 933727;
+	    size = 933643;
     }
     table next_hop_table {
         key = {  
