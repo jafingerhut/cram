@@ -31,7 +31,42 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-const bit<8> SLICE = 32;
+// Conditions that the code below assumes are true about these
+// constant values:
+
+// (2 <= SLICE) && (SLICE <= 62)
+// (SLICE % 2) == 0
+// (HI_WIDTH >= 1)
+// (LO_WIDTH >= 1)
+// (SLICE + HI_WIDTH + LO_WIDTH) == 64
+
+#define HI_WIDTH 12
+#define LO_WIDTH 12
+const bit<8> SLICE = 40;
+
+// Successful compiles with these combinations of values have been tested:
+
+// SLICE  HI_WIDTH  LO_WIDTH   result  stages
+//  40       12         12     ok      19
+//  24        8         32     ok      19
+//  22       10         32     ok      19
+//  20       12         32     ok      19
+//   2       30         32     ok      19
+
+// PADBITS(n) is intended to be the number of padding bits to put
+// next to a field that is n bits wide, so that the total of the n-bit
+// field and the padding add up to a multiple of 8 bits, and that the
+// padding is as few bits as possible.
+
+// Example values of PADBITS(n):
+// n  PADBITS(n)
+// 1  7
+// 7  1
+// 8  0
+// 9  7
+// 16 0
+#define PADBITS(n) (7-(((n)-1) % 8))
+
 const PortId_t LOOPBACK_PORT = 5;
 
 typedef bit<2> next_hop_index_t;
@@ -44,8 +79,22 @@ header bridge_metadata_t {
     next_hop_index_t next_hop_index;
     bst_hit_t bst_hit;
     bst_index_t bst_index;
-    bit<(64-SLICE)> dst_addr_prefix;
-    bit<(64-SLICE)> dst_addr_prefix_plus_1;
+#if PADBITS(HI_WIDTH) != 0
+    bit<(PADBITS(HI_WIDTH))> rsvd1;
+#endif
+    bit<(HI_WIDTH)> dst_addr_prefix_hi;
+#if PADBITS(LO_WIDTH) != 0
+    bit<(PADBITS(LO_WIDTH))> rsvd2;
+#endif
+    bit<(LO_WIDTH)> dst_addr_prefix_lo;
+#if PADBITS(HI_WIDTH) != 0
+    bit<(PADBITS(HI_WIDTH))> rsvd3;
+#endif
+    bit<(HI_WIDTH)> dst_addr_prefix_hi_plus_1;
+#if PADBITS(LO_WIDTH) != 0
+    bit<(PADBITS(LO_WIDTH))> rsvd4;
+#endif
+    bit<(LO_WIDTH)> dst_addr_prefix_lo_plus_1;
 }
 
 header loopback_h {
@@ -72,8 +121,10 @@ struct ingress_metadata_t {
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
+    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi;
+    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo;
+    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi_minus_1;
+    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo_minus_1;
 }
 
 struct egress_metadata_t {
@@ -83,8 +134,10 @@ struct egress_metadata_t {
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix;
-    bit<(64-SLICE)> prefix_minus_dst_addr_prefix_minus_1;
+    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi;
+    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo;
+    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi_minus_1;
+    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo_minus_1;
 }
 
 parser ingressParserImpl(
@@ -142,14 +195,17 @@ control ingressImpl(
     action set_bst_index(bst_index_t bi) {
 	    hdr.bridge_md.bst_index = bi;
     }
-    action node_decision(bit<(64-SLICE)> prefix,
+    action node_decision(bit<(HI_WIDTH)> prefix_hi,
+                        bit<(LO_WIDTH)> prefix_lo,
                         next_hop_index_t nhi,
                         bst_index_t left_child,
                         bst_index_t right_child,
                         bit<1> left_child_valid,
                         bit<1> right_child_valid) {
-        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
-        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
+        umd.prefix_minus_dst_addr_prefix_hi = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi);
+        umd.prefix_minus_dst_addr_prefix_lo = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo);
+        umd.prefix_minus_dst_addr_prefix_hi_minus_1 = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi_plus_1);
+        umd.prefix_minus_dst_addr_prefix_lo_minus_1 = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo_plus_1);
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
@@ -248,8 +304,12 @@ control ingressImpl(
         else{
             unicast_to_port(LOOPBACK_PORT);
             hdr.bridge_md.bst_hit = 0;
-            hdr.bridge_md.dst_addr_prefix = hdr.ipv6.dst_addr[(128-SLICE-1):64];
-            hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.ipv6.dst_addr[(128-SLICE-1):64] + 1;
+
+            hdr.bridge_md.dst_addr_prefix_hi = hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH];
+            hdr.bridge_md.dst_addr_prefix_lo = hdr.ipv6.dst_addr[64+LO_WIDTH-1:64];
+            hdr.bridge_md.dst_addr_prefix_hi_plus_1 = hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH] + 1;
+            hdr.bridge_md.dst_addr_prefix_lo_plus_1 = hdr.ipv6.dst_addr[64+LO_WIDTH-1:64] + 1;
+
             switch (initial_lookup_table.apply().action_run) {
                 set_next_hop_index: {
                     hdr.bridge_md.bst_hit = 1;
@@ -260,11 +320,18 @@ control ingressImpl(
                     // Second if condition below should be equivalent to
                     // (prefix < dst_addr_prefix)
 #define NODE_DECISION_CODE \
-                    if ((umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 0) && (umd.prefix_minus_dst_addr_prefix_minus_1[64-SLICE-1:64-SLICE-1] == 1)) { \
+                    if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH-1):(LO_WIDTH-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo_minus_1[(LO_WIDTH-1):(LO_WIDTH-1)] == 1)) { \
                         hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
                         hdr.bridge_md.bst_hit = 1; \
                     } \
-                    else if (umd.prefix_minus_dst_addr_prefix[64-SLICE-1:64-SLICE-1] == 1) { \
+                    else if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) || \
+                        ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 0) && \
+                            (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) && \
+                            (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH-1):(LO_WIDTH-1)] == 1)) \
+                    ) { \
                         hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
                         if (umd.tmp_right_child_valid == 0) { \
                             hdr.bridge_md.bst_hit = 1; \
@@ -362,14 +429,17 @@ control egressImpl(
     action set_loopback_port(PortId_t p) {
         hdr.loopback.chosen_port = p;
     }
-    action node_decision(bit<(64-SLICE)> prefix,
+    action node_decision(bit<(HI_WIDTH)> prefix_hi,
+                        bit<(LO_WIDTH)> prefix_lo,
                         next_hop_index_t nhi,
                         bst_index_t left_child,
                         bst_index_t right_child,
                         bit<1> left_child_valid,
                         bit<1> right_child_valid) {
-        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
-        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
+        umd.prefix_minus_dst_addr_prefix_hi = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi);
+        umd.prefix_minus_dst_addr_prefix_lo = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo);
+        umd.prefix_minus_dst_addr_prefix_hi_minus_1 = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi_plus_1);
+        umd.prefix_minus_dst_addr_prefix_lo_minus_1 = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo_plus_1);
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
