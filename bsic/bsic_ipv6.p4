@@ -233,6 +233,7 @@ parser ingressParserImpl(
     }
     state parse_ipv6 {
         pkt.extract(hdr.ipv6);
+        hdr.bridge_md.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
         transition accept;
     }
 }
@@ -382,8 +383,8 @@ control ingressImpl(
             hdr.bridge_md.bst_hit = 0;
 
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
-            hdr.bridge_md.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[128-SLICE-1:64];
-            hdr.bridge_md.dst_addr_prefix_plus_1 = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[128-SLICE-1:64] + 1;
+            hdr.bridge_md.dst_addr_prefix = hdr.bridge_md.dst_addr_prefix & (-1 >> SLICE);
+            hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.bridge_md.dst_addr_prefix + 1;
 #endif  // COMPARE_PREFIX_IN_ONE_PIECE
 #ifdef COMPARE_PREFIX_IN_TWO_PIECES
             hdr.bridge_md.dst_addr_prefix_hi = (bit<(HI_WIDTH+HI_EXTRA)>) hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH];
