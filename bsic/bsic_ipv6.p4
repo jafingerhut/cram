@@ -113,7 +113,7 @@ typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
-    bit<5> rsvd0;
+    @padding bit<5> rsvd0;
     next_hop_index_t next_hop_index;
     bst_hit_t bst_hit;
     bst_index_t bst_index;
@@ -275,7 +275,6 @@ control ingressImpl(
         bit<1> right_child_valid)
     {
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
-        hdr.bridge_md.dst_addr_prefix = umd.dst_addr_prefix;
         umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
         umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
 #endif  // COMPARE_PREFIX_IN_ONE_PIECE
@@ -382,10 +381,11 @@ control ingressImpl(
         }
         else{
             unicast_to_port(LOOPBACK_PORT);
+            hdr.bridge_md.setValid();
             hdr.bridge_md.bst_hit = 0;
 
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
-            hdr.bridge_md.dst_addr_prefix = hdr.bridge_md.dst_addr_prefix & (-1 >> SLICE);
+            hdr.bridge_md.dst_addr_prefix = umd.dst_addr_prefix & (-1 >> SLICE);
             hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.bridge_md.dst_addr_prefix + 1;
 #endif  // COMPARE_PREFIX_IN_ONE_PIECE
 #ifdef COMPARE_PREFIX_IN_TWO_PIECES
