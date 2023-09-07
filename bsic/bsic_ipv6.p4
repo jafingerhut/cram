@@ -167,6 +167,7 @@ struct egress_headers_t {
 
 struct ingress_metadata_t {
     // user-defined ingress metadata
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> dst_addr_prefix;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
@@ -233,7 +234,7 @@ parser ingressParserImpl(
     }
     state parse_ipv6 {
         pkt.extract(hdr.ipv6);
-        hdr.bridge_md.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
+        umd.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
         transition accept;
     }
 }
@@ -274,6 +275,7 @@ control ingressImpl(
         bit<1> right_child_valid)
     {
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
+        hdr.bridge_md.dst_addr_prefix = umd.dst_addr_prefix;
         umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
         umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
 #endif  // COMPARE_PREFIX_IN_ONE_PIECE
