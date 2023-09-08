@@ -107,15 +107,19 @@ const bit<8> SLICE = 24;
 
 const PortId_t LOOPBACK_PORT = 5;
 
-typedef bit<2> next_hop_index_t;
+#define NEXT_HOP_SIZE 8
+
+typedef bit<NEXT_HOP_SIZE> next_hop_index_t;
 typedef bit<16> bst_index_t;
 typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
-    @padding bit<5> rsvd0;
-    next_hop_index_t next_hop_index;
+#if PADBITS(NEXT_HOP_SIZE+1) != 0
+    @padding bit<(PADBITS(NEXT_HOP_SIZE+1))> rsvd0;
+#endif
     bst_hit_t bst_hit;
+    next_hop_index_t next_hop_index;
     bst_index_t bst_index;
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
 #if PADBITS(PREFIX_WIDTH+PREFIX_EXTRA) != 0
