@@ -299,7 +299,7 @@ control ingressImpl(
             drop_packet;
         }
         const default_action = drop_packet;
-	    size = 6888;
+	    size = 7463;
     }
     table bst_0_table {
         key = {
@@ -308,7 +308,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 6833;
+        size = 7408;
     }
     table bst_1_table {
         key = {
@@ -317,7 +317,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 13666;
+        size = 14816;
     }
     table bst_2_table {
         key = {
@@ -326,7 +326,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 17186;
+        size = 19770;
     }
     table bst_3_table {
         key = {
@@ -335,7 +335,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 17832;
+        size = 21588;
     }
     table bst_4_table {
         key = {
@@ -344,7 +344,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 18476;
+        size = 22994;
     }
     table bst_5_table {
         key = {
@@ -353,7 +353,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 21140;
+        size = 26626;
     }
     table bst_6_table {
         key = {
@@ -362,7 +362,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 28756;
+        size = 35276;
     }
     table bst_7_table {
         key = {
@@ -371,7 +371,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 35756;
+        size = 46774;
     }
 
     apply {
@@ -580,7 +580,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 34710;
+        size = 47162;
     }
     table bst_9_table {
         key = {
@@ -589,7 +589,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 32072;
+        size = 42160;
     }
     table bst_10_table {
         key = {
@@ -598,7 +598,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 31724;
+        size = 39140;
     }
     table bst_11_table {
         key = {
@@ -607,7 +607,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 29244;
+        size = 40942;
     }
     table bst_12_table {
         key = {
@@ -616,7 +616,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 10098;
+        size = 23448;
     }
     table bst_13_table {
         key = {
@@ -625,7 +625,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 2722;
+        size = 8464;
     }
     table next_hop_table {
         key = {  
