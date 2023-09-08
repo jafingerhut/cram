@@ -21,7 +21,7 @@ limitations under the License.
 // checking.
 //#define __TARGET_TOFINO__ 1
 
-#ifdef TOFINO
+#ifdef TOFINO1
 #include <tna.p4>
 #endif
 
@@ -31,6 +31,34 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
+// There are two styles of P4 code that can be enabled by choosing to
+// #define at most one of the two preprocessor symbols below:
+
+#define COMPARE_PREFIX_IN_ONE_PIECE
+#undef COMPARE_PREFIX_IN_TWO_PIECES
+
+const bit<8> SLICE = 24;
+
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+// Conditions that the code below assumes are true about these
+// constant values:
+
+// (2 <= SLICE) && (SLICE <= 62)
+// (SLICE % 2) == 0
+// (PREFIX_WIDTH >= 1)
+// (PREFIX_EXTRA >= 1)
+// (SLICE + PREFIX_WIDTH) == 64
+
+#define PREFIX_EXTRA 24
+#define PREFIX_WIDTH 40
+
+// SLICE  PREFIX_WIDTH  PREFIX_EXTRA  result  stages
+//  24       40               8        PHV allocation was not successful
+//  24       40              24        PHV allocation was not successful
+
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
 // Conditions that the code below assumes are true about these
 // constant values:
 
@@ -38,20 +66,30 @@ limitations under the License.
 // (SLICE % 2) == 0
 // (HI_WIDTH >= 1)
 // (LO_WIDTH >= 1)
+// (HI_EXTRA >= 1)
+// (LO_EXTRA >= 1)
 // (SLICE + HI_WIDTH + LO_WIDTH) == 64
 
+#define HI_EXTRA 4
 #define HI_WIDTH 12
+#define LO_EXTRA 4
 #define LO_WIDTH 12
-const bit<8> SLICE = 40;
 
 // Successful compiles with these combinations of values have been tested:
 
-// SLICE  HI_WIDTH  LO_WIDTH   result  stages
-//  40       12         12     ok      19
-//  24        8         32     ok      19
-//  22       10         32     ok      19
-//  20       12         32     ok      19
-//   2       30         32     ok      19
+// SLICE  HI_WIDTH  HI_EXTRA  LO_WIDTH  LO_EXTRA  result  stages
+//  40       12         0        12        0      ok      19
+//  24        8         0        32        0      ok      19
+//  22       10         0        32        0      ok      19
+//  20       12         0        32        0      ok      19
+//   2       30         0        32        0      ok      19
+
+// So far I have found very few combinations of values with HI_EXTRA
+// >= 1 and LO_EXTRA >= 1 that compile successfully:
+//  40       12         4        12        4      ok      19
+
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
+
 
 // PADBITS(n) is intended to be the number of padding bits to put
 // next to a field that is n bits wide, so that the total of the n-bit
@@ -79,22 +117,35 @@ header bridge_metadata_t {
     next_hop_index_t next_hop_index;
     bst_hit_t bst_hit;
     bst_index_t bst_index;
-#if PADBITS(HI_WIDTH) != 0
-    bit<(PADBITS(HI_WIDTH))> rsvd1;
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+#if PADBITS(PREFIX_WIDTH+PREFIX_EXTRA) != 0
+    bit<(PADBITS(PREFIX_WIDTH+PREFIX_EXTRA))> rsvd1;
 #endif
-    bit<(HI_WIDTH)> dst_addr_prefix_hi;
-#if PADBITS(LO_WIDTH) != 0
-    bit<(PADBITS(LO_WIDTH))> rsvd2;
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> dst_addr_prefix;
+#if PADBITS(PREFIX_WIDTH+PREFIX_EXTRA) != 0
+    bit<(PADBITS(PREFIX_WIDTH+PREFIX_EXTRA))> rsvd3;
 #endif
-    bit<(LO_WIDTH)> dst_addr_prefix_lo;
-#if PADBITS(HI_WIDTH) != 0
-    bit<(PADBITS(HI_WIDTH))> rsvd3;
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> dst_addr_prefix_plus_1;
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+#if PADBITS(HI_WIDTH+HI_EXTRA) != 0
+    bit<(PADBITS(HI_WIDTH+HI_EXTRA))> rsvd1;
 #endif
-    bit<(HI_WIDTH)> dst_addr_prefix_hi_plus_1;
-#if PADBITS(LO_WIDTH) != 0
-    bit<(PADBITS(LO_WIDTH))> rsvd4;
+    bit<(HI_WIDTH+HI_EXTRA)> dst_addr_prefix_hi;
+#if PADBITS(LO_WIDTH+LO_EXTRA) != 0
+    bit<(PADBITS(LO_WIDTH+LO_EXTRA))> rsvd2;
 #endif
-    bit<(LO_WIDTH)> dst_addr_prefix_lo_plus_1;
+    bit<(LO_WIDTH+LO_EXTRA)> dst_addr_prefix_lo;
+#if PADBITS(HI_WIDTH+HI_EXTRA) != 0
+    bit<(PADBITS(HI_WIDTH+HI_EXTRA))> rsvd3;
+#endif
+    bit<(HI_WIDTH+HI_EXTRA)> dst_addr_prefix_hi_plus_1;
+#if PADBITS(LO_WIDTH+LO_EXTRA) != 0
+    bit<(PADBITS(LO_WIDTH+LO_EXTRA))> rsvd4;
+#endif
+    bit<(LO_WIDTH+LO_EXTRA)> dst_addr_prefix_lo_plus_1;
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
 }
 
 header loopback_h {
@@ -121,10 +172,16 @@ struct ingress_metadata_t {
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi;
-    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo;
-    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi_minus_1;
-    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo_minus_1;
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix_minus_dst_addr_prefix;
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix_minus_dst_addr_prefix_minus_1;
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+    bit<(HI_WIDTH+HI_EXTRA)> prefix_minus_dst_addr_prefix_hi;
+    bit<(LO_WIDTH+LO_EXTRA)> prefix_minus_dst_addr_prefix_lo;
+    bit<(HI_WIDTH+HI_EXTRA)> prefix_minus_dst_addr_prefix_hi_minus_1;
+    bit<(LO_WIDTH+LO_EXTRA)> prefix_minus_dst_addr_prefix_lo_minus_1;
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
 }
 
 struct egress_metadata_t {
@@ -134,10 +191,16 @@ struct egress_metadata_t {
     bst_index_t tmp_right_child;
     bit<1> tmp_left_child_valid;
     bit<1> tmp_right_child_valid;
-    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi;
-    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo;
-    bit<(HI_WIDTH)> prefix_minus_dst_addr_prefix_hi_minus_1;
-    bit<(LO_WIDTH)> prefix_minus_dst_addr_prefix_lo_minus_1;
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix_minus_dst_addr_prefix;
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix_minus_dst_addr_prefix_minus_1;
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+    bit<(HI_WIDTH+HI_EXTRA)> prefix_minus_dst_addr_prefix_hi;
+    bit<(LO_WIDTH+LO_EXTRA)> prefix_minus_dst_addr_prefix_lo;
+    bit<(HI_WIDTH+HI_EXTRA)> prefix_minus_dst_addr_prefix_hi_minus_1;
+    bit<(LO_WIDTH+LO_EXTRA)> prefix_minus_dst_addr_prefix_lo_minus_1;
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
 }
 
 parser ingressParserImpl(
@@ -170,6 +233,7 @@ parser ingressParserImpl(
     }
     state parse_ipv6 {
         pkt.extract(hdr.ipv6);
+        hdr.bridge_md.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
         transition accept;
     }
 }
@@ -195,17 +259,30 @@ control ingressImpl(
     action set_bst_index(bst_index_t bi) {
 	    hdr.bridge_md.bst_index = bi;
     }
-    action node_decision(bit<(HI_WIDTH)> prefix_hi,
-                        bit<(LO_WIDTH)> prefix_lo,
-                        next_hop_index_t nhi,
-                        bst_index_t left_child,
-                        bst_index_t right_child,
-                        bit<1> left_child_valid,
-                        bit<1> right_child_valid) {
+    action node_decision(
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+        bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix,
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+        bit<(HI_WIDTH+HI_EXTRA)> prefix_hi,
+        bit<(LO_WIDTH+LO_EXTRA)> prefix_lo,
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
+        next_hop_index_t nhi,
+        bst_index_t left_child,
+        bst_index_t right_child,
+        bit<1> left_child_valid,
+        bit<1> right_child_valid)
+    {
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
         umd.prefix_minus_dst_addr_prefix_hi = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi);
         umd.prefix_minus_dst_addr_prefix_lo = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo);
         umd.prefix_minus_dst_addr_prefix_hi_minus_1 = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi_plus_1);
         umd.prefix_minus_dst_addr_prefix_lo_minus_1 = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo_plus_1);
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
@@ -305,32 +382,68 @@ control ingressImpl(
             unicast_to_port(LOOPBACK_PORT);
             hdr.bridge_md.bst_hit = 0;
 
-            hdr.bridge_md.dst_addr_prefix_hi = hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH];
-            hdr.bridge_md.dst_addr_prefix_lo = hdr.ipv6.dst_addr[64+LO_WIDTH-1:64];
-            hdr.bridge_md.dst_addr_prefix_hi_plus_1 = hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH] + 1;
-            hdr.bridge_md.dst_addr_prefix_lo_plus_1 = hdr.ipv6.dst_addr[64+LO_WIDTH-1:64] + 1;
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+            hdr.bridge_md.dst_addr_prefix = hdr.bridge_md.dst_addr_prefix & (-1 >> SLICE);
+            hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.bridge_md.dst_addr_prefix + 1;
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+            hdr.bridge_md.dst_addr_prefix_hi = (bit<(HI_WIDTH+HI_EXTRA)>) hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH];
+            hdr.bridge_md.dst_addr_prefix_lo = (bit<(LO_WIDTH+LO_EXTRA)>) hdr.ipv6.dst_addr[64+LO_WIDTH-1:64];
+            hdr.bridge_md.dst_addr_prefix_hi_plus_1 = (bit<(HI_WIDTH+HI_EXTRA)>) hdr.ipv6.dst_addr[128-SLICE-1:64+LO_WIDTH] + 1;
+            hdr.bridge_md.dst_addr_prefix_lo_plus_1 = (bit<(LO_WIDTH+LO_EXTRA)>) hdr.ipv6.dst_addr[64+LO_WIDTH-1:64] + 1;
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
 
             switch (initial_lookup_table.apply().action_run) {
                 set_next_hop_index: {
                     hdr.bridge_md.bst_hit = 1;
                 }
                 set_bst_index: {
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
                     // First if condition below should be equivalent to
                     // (prefix == dst_addr_prefix)
                     // Second if condition below should be equivalent to
                     // (prefix < dst_addr_prefix)
 #define NODE_DECISION_CODE \
-                    if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 0) && \
-                        (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) && \
-                        (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH-1):(LO_WIDTH-1)] == 0) && \
-                        (umd.prefix_minus_dst_addr_prefix_lo_minus_1[(LO_WIDTH-1):(LO_WIDTH-1)] == 1)) { \
+                    if ((umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_minus_1[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1)) { \
                         hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
                         hdr.bridge_md.bst_hit = 1; \
                     } \
-                    else if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) || \
-                        ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH-1):(HI_WIDTH-1)] == 0) && \
-                            (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH-1):(HI_WIDTH-1)] == 1) && \
-                            (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH-1):(LO_WIDTH-1)] == 1)) \
+                    else if (umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        if (umd.tmp_right_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
+                        } \
+                    } \
+                    else { \
+                        if (umd.tmp_left_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
+                        } \
+                    }
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+                    // First if condition below should be equivalent to
+                    // (prefix == dst_addr_prefix)
+                    // Second if condition below should be equivalent to
+                    // (prefix < dst_addr_prefix)
+#define NODE_DECISION_CODE \
+                    if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo_minus_1[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        hdr.bridge_md.bst_hit = 1; \
+                    } \
+                    else if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) || \
+                        ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
+                            (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
+                            (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) \
                     ) { \
                         hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
                         if (umd.tmp_right_child_valid == 0) { \
@@ -348,6 +461,7 @@ control ingressImpl(
                             hdr.bridge_md.bst_index = umd.tmp_left_child; \
                         } \
                     }
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
                     bst_0_table.apply();
                     NODE_DECISION_CODE
                     if (hdr.bridge_md.bst_hit != 1) {
@@ -429,17 +543,30 @@ control egressImpl(
     action set_loopback_port(PortId_t p) {
         hdr.loopback.chosen_port = p;
     }
-    action node_decision(bit<(HI_WIDTH)> prefix_hi,
-                        bit<(LO_WIDTH)> prefix_lo,
-                        next_hop_index_t nhi,
-                        bst_index_t left_child,
-                        bst_index_t right_child,
-                        bit<1> left_child_valid,
-                        bit<1> right_child_valid) {
+    action node_decision(
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+        bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix,
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+        bit<(HI_WIDTH+HI_EXTRA)> prefix_hi,
+        bit<(LO_WIDTH+LO_EXTRA)> prefix_lo,
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
+        next_hop_index_t nhi,
+        bst_index_t left_child,
+        bst_index_t right_child,
+        bit<1> left_child_valid,
+        bit<1> right_child_valid)
+    {
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+        umd.prefix_minus_dst_addr_prefix = (prefix - hdr.bridge_md.dst_addr_prefix);
+        umd.prefix_minus_dst_addr_prefix_minus_1 = (prefix - hdr.bridge_md.dst_addr_prefix_plus_1);
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
         umd.prefix_minus_dst_addr_prefix_hi = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi);
         umd.prefix_minus_dst_addr_prefix_lo = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo);
         umd.prefix_minus_dst_addr_prefix_hi_minus_1 = (prefix_hi - hdr.bridge_md.dst_addr_prefix_hi_plus_1);
         umd.prefix_minus_dst_addr_prefix_lo_minus_1 = (prefix_lo - hdr.bridge_md.dst_addr_prefix_lo_plus_1);
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
         umd.tmp_nhi = nhi;
         umd.tmp_left_child = left_child;
         umd.tmp_right_child = right_child;
