@@ -31,7 +31,9 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-typedef bit<2> next_hop_index_t;
+#define NEXT_HOP_SIZE 8
+
+typedef bit<NEXT_HOP_SIZE> next_hop_index_t;
 typedef bit<32> bitstring_t;
 typedef bit<1> bitmap_hit_t;
 typedef bit<25> hash_key_t;
