@@ -940,7 +940,9 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 933643;
+        // 933643 * (1/.80) for expected hash table utilization of 80%
+        // -> 1167053
+	size = 1167053;
     }
     table next_hop_table {
         key = {  
