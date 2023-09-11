@@ -113,7 +113,7 @@ typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
     // user-defined metadata carried over from ingress to egress.
-    bit<5> rsvd0;
+    @padding bit<5> rsvd0;
     next_hop_index_t next_hop_index;
     bst_hit_t bst_hit;
     bst_index_t bst_index;
@@ -149,8 +149,9 @@ header bridge_metadata_t {
 }
 
 header loopback_h {
-    bit<7> rsvd0;
-    PortId_t chosen_port;
+    @padding bit<15> rsvd;
+    bit<1> bst_hit;
+    bst_index_t bst_index;
 }
 
 struct ingress_headers_t {
@@ -167,6 +168,7 @@ struct egress_headers_t {
 
 struct ingress_metadata_t {
     // user-defined ingress metadata
+    bit<(PREFIX_WIDTH+PREFIX_EXTRA)> dst_addr_prefix;
     next_hop_index_t tmp_nhi;
     bst_index_t tmp_left_child;
     bst_index_t tmp_right_child;
@@ -233,10 +235,76 @@ parser ingressParserImpl(
     }
     state parse_ipv6 {
         pkt.extract(hdr.ipv6);
-        hdr.bridge_md.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
+        umd.dst_addr_prefix = (bit<(PREFIX_WIDTH+PREFIX_EXTRA)>) hdr.ipv6.dst_addr[127:64];
         transition accept;
     }
 }
+
+
+#ifdef COMPARE_PREFIX_IN_ONE_PIECE
+                    // First if condition below should be equivalent to
+                    // (prefix == dst_addr_prefix)
+                    // Second if condition below should be equivalent to
+                    // (prefix < dst_addr_prefix)
+#define NODE_DECISION_CODE \
+                    if ((umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_minus_1[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1)) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        hdr.bridge_md.bst_hit = 1; \
+                    } \
+                    else if (umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        if (umd.tmp_right_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
+                        } \
+                    } \
+                    else { \
+                        if (umd.tmp_left_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
+                        } \
+                    }
+#endif  // COMPARE_PREFIX_IN_ONE_PIECE
+#ifdef COMPARE_PREFIX_IN_TWO_PIECES
+                    // First if condition below should be equivalent to
+                    // (prefix == dst_addr_prefix)
+                    // Second if condition below should be equivalent to
+                    // (prefix < dst_addr_prefix)
+#define NODE_DECISION_CODE \
+                    if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 0) && \
+                        (umd.prefix_minus_dst_addr_prefix_lo_minus_1[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        hdr.bridge_md.bst_hit = 1; \
+                    } \
+                    else if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) || \
+                        ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
+                            (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
+                            (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) \
+                    ) { \
+                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
+                        if (umd.tmp_right_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
+                        } \
+                    } \
+                    else { \
+                        if (umd.tmp_left_child_valid == 0) { \
+                            hdr.bridge_md.bst_hit = 1; \
+                        } \
+                        else { \
+                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
+                        } \
+                    }
+#endif  // COMPARE_PREFIX_IN_TWO_PIECES
 
 control ingressImpl(
     inout ingress_headers_t  hdr,
@@ -346,44 +414,60 @@ control ingressImpl(
         }
         size = 22994;
     }
-    table bst_5_table {
+    table bst_12_table {
         key = {
             hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
         }
-        size = 26626;
+        size = 23448;
     }
-    table bst_6_table {
+    table bst_13_table {
         key = {
             hdr.bridge_md.bst_index : exact;
         }
         actions = {
             node_decision;
         }
-        size = 35276;
+        size = 8464;
     }
-    table bst_7_table {
+    table next_hop_table {
         key = {
-            hdr.bridge_md.bst_index : exact;
+            hdr.bridge_md.next_hop_index : exact;
         }
         actions = {
-            node_decision;
+            unicast_to_port;
         }
-        size = 46774;
+        size = 4;
+    }
+    action copy_loopback_fields_to_bridge_md() {
+        hdr.bridge_md.bst_hit = hdr.loopback.bst_hit;
+        hdr.bridge_md.bst_index = hdr.loopback.bst_index;
     }
 
     apply {
         if (hdr.loopback.isValid()) {
-            unicast_to_port(hdr.loopback.chosen_port);
-        }
-        else{
+            copy_loopback_fields_to_bridge_md();
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_12_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_13_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                drop_packet();
+            }
+            next_hop_table.apply();
+        } else {
             unicast_to_port(LOOPBACK_PORT);
+            hdr.bridge_md.setValid();
             hdr.bridge_md.bst_hit = 0;
 
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
-            hdr.bridge_md.dst_addr_prefix = hdr.bridge_md.dst_addr_prefix & (-1 >> SLICE);
+            hdr.bridge_md.dst_addr_prefix = umd.dst_addr_prefix & (-1 >> SLICE);
             hdr.bridge_md.dst_addr_prefix_plus_1 = hdr.bridge_md.dst_addr_prefix + 1;
 #endif  // COMPARE_PREFIX_IN_ONE_PIECE
 #ifdef COMPARE_PREFIX_IN_TWO_PIECES
@@ -398,70 +482,6 @@ control ingressImpl(
                     hdr.bridge_md.bst_hit = 1;
                 }
                 set_bst_index: {
-#ifdef COMPARE_PREFIX_IN_ONE_PIECE
-                    // First if condition below should be equivalent to
-                    // (prefix == dst_addr_prefix)
-                    // Second if condition below should be equivalent to
-                    // (prefix < dst_addr_prefix)
-#define NODE_DECISION_CODE \
-                    if ((umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 0) && \
-                        (umd.prefix_minus_dst_addr_prefix_minus_1[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1)) { \
-                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-                        hdr.bridge_md.bst_hit = 1; \
-                    } \
-                    else if (umd.prefix_minus_dst_addr_prefix[(PREFIX_WIDTH+PREFIX_EXTRA-1):(PREFIX_WIDTH+PREFIX_EXTRA-1)] == 1) { \
-                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-                        if (umd.tmp_right_child_valid == 0) { \
-                            hdr.bridge_md.bst_hit = 1; \
-                        } \
-                        else { \
-                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
-                        } \
-                    } \
-                    else { \
-                        if (umd.tmp_left_child_valid == 0) { \
-                            hdr.bridge_md.bst_hit = 1; \
-                        } \
-                        else { \
-                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
-                        } \
-                    }
-#endif  // COMPARE_PREFIX_IN_ONE_PIECE
-#ifdef COMPARE_PREFIX_IN_TWO_PIECES
-                    // First if condition below should be equivalent to
-                    // (prefix == dst_addr_prefix)
-                    // Second if condition below should be equivalent to
-                    // (prefix < dst_addr_prefix)
-#define NODE_DECISION_CODE \
-                    if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
-                        (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
-                        (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 0) && \
-                        (umd.prefix_minus_dst_addr_prefix_lo_minus_1[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) { \
-                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-                        hdr.bridge_md.bst_hit = 1; \
-                    } \
-                    else if ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) || \
-                        ((umd.prefix_minus_dst_addr_prefix_hi[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 0) && \
-                            (umd.prefix_minus_dst_addr_prefix_hi_minus_1[(HI_WIDTH+HI_EXTRA-1):(HI_WIDTH+HI_EXTRA-1)] == 1) && \
-                            (umd.prefix_minus_dst_addr_prefix_lo[(LO_WIDTH+LO_EXTRA-1):(LO_WIDTH+LO_EXTRA-1)] == 1)) \
-                    ) { \
-                        hdr.bridge_md.next_hop_index = umd.tmp_nhi; \
-                        if (umd.tmp_right_child_valid == 0) { \
-                            hdr.bridge_md.bst_hit = 1; \
-                        } \
-                        else { \
-                            hdr.bridge_md.bst_index = umd.tmp_right_child; \
-                        } \
-                    } \
-                    else { \
-                        if (umd.tmp_left_child_valid == 0) { \
-                            hdr.bridge_md.bst_hit = 1; \
-                        } \
-                        else { \
-                            hdr.bridge_md.bst_index = umd.tmp_left_child; \
-                        } \
-                    }
-#endif  // COMPARE_PREFIX_IN_TWO_PIECES
                     bst_0_table.apply();
                     NODE_DECISION_CODE
                     if (hdr.bridge_md.bst_hit != 1) {
@@ -478,18 +498,6 @@ control ingressImpl(
                     }
                     if (hdr.bridge_md.bst_hit != 1) {
                         bst_4_table.apply();
-                        NODE_DECISION_CODE
-                    }
-                    if (hdr.bridge_md.bst_hit != 1) {
-                        bst_5_table.apply();
-                        NODE_DECISION_CODE
-                    }
-                    if (hdr.bridge_md.bst_hit != 1) {
-                        bst_6_table.apply();
-                        NODE_DECISION_CODE
-                    }
-                    if (hdr.bridge_md.bst_hit != 1) {
-                        bst_7_table.apply();
                         NODE_DECISION_CODE
                     }
                 }
@@ -540,9 +548,6 @@ control egressImpl(
         eg_dprsr_md.drop_ctl = 1;
         return;
     }
-    action set_loopback_port(PortId_t p) {
-        hdr.loopback.chosen_port = p;
-    }
     action node_decision(
 #ifdef COMPARE_PREFIX_IN_ONE_PIECE
         bit<(PREFIX_WIDTH+PREFIX_EXTRA)> prefix,
@@ -572,6 +577,33 @@ control egressImpl(
         umd.tmp_right_child = right_child;
         umd.tmp_left_child_valid = left_child_valid;
         umd.tmp_right_child_valid = right_child_valid;
+    }
+    table bst_5_table {
+        key = {
+            hdr.bridge_md.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 26626;
+    }
+    table bst_6_table {
+        key = {
+            hdr.bridge_md.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 35276;
+    }
+    table bst_7_table {
+        key = {
+            hdr.bridge_md.bst_index : exact;
+        }
+        actions = {
+            node_decision;
+        }
+        size = 46774;
     }
     table bst_8_table {
         key = {
@@ -609,38 +641,27 @@ control egressImpl(
         }
         size = 40942;
     }
-    table bst_12_table {
-        key = {
-            hdr.bridge_md.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 23448;
-    }
-    table bst_13_table {
-        key = {
-            hdr.bridge_md.bst_index : exact;
-        }
-        actions = {
-            node_decision;
-        }
-        size = 8464;
-    }
-    table next_hop_table {
-        key = {  
-            hdr.bridge_md.next_hop_index : exact;
-        }
-        actions = {
-            set_loopback_port;
-        }
-        size = 4;
+    action init_loopback_header() {
+        hdr.loopback.setValid();
+        hdr.loopback.bst_hit = hdr.bridge_md.bst_hit;
+        hdr.loopback.bst_index = hdr.bridge_md.bst_index;
     }
 
     apply {
         if (eg_intr_md.egress_port == LOOPBACK_PORT) {
             // need to set header to valid because emit depends on the valid bit
-            hdr.loopback.setValid();
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_5_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_6_table.apply();
+                NODE_DECISION_CODE
+            }
+            if (hdr.bridge_md.bst_hit != 1) {
+                bst_7_table.apply();
+                NODE_DECISION_CODE
+            }
             if (hdr.bridge_md.bst_hit != 1) {
                 bst_8_table.apply();
                 NODE_DECISION_CODE
@@ -657,18 +678,7 @@ control egressImpl(
                 bst_11_table.apply();
                 NODE_DECISION_CODE
             }
-            if (hdr.bridge_md.bst_hit != 1) {
-                bst_12_table.apply();
-                NODE_DECISION_CODE
-            }
-            if (hdr.bridge_md.bst_hit != 1) {
-                bst_13_table.apply();
-                NODE_DECISION_CODE
-            }
-            if (hdr.bridge_md.bst_hit != 1) {
-                drop_packet();
-            }
-            next_hop_table.apply();
+            init_loopback_header();
         }
     }
 }
