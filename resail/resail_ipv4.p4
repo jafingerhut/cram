@@ -31,7 +31,9 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
-typedef bit<2> next_hop_index_t;
+#define NEXT_HOP_SIZE 8
+
+typedef bit<NEXT_HOP_SIZE> next_hop_index_t;
 typedef bit<32> bitstring_t;
 typedef bit<1> bitmap_hit_t;
 typedef bit<25> hash_key_t;
@@ -938,7 +940,9 @@ control ingressImpl(
         actions = {
             set_next_hop_index;
         }
-	    size = 933643;
+        // 933643 * (1/.80) for expected hash table utilization of 80%
+        // -> 1167053
+	size = 1167053;
     }
     table next_hop_table {
         key = {  
