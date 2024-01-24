@@ -15,13 +15,15 @@ limitations under the License.
 */
 
 #include <core.p4>
+
+#ifdef TOFINO1
+#ifdef OPENTOFINO_INCLUDES
 // The following line is not needed when using Intel Tofino P4
 // compiler.  It is only here to be able to use open source p4test
 // with tna.p4 include file in Open-Tofino repository for syntax
 // checking.
-//#define __TARGET_TOFINO__ 1
-
-#ifdef TOFINO1
+#define __TARGET_TOFINO__ 1
+#endif
 #include <tna.p4>
 #endif
 

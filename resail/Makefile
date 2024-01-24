@@ -1,4 +1,4 @@
-BMV2_SWITCH_EXE = simple_switch_grpc
-TOPO = sim-topo/topology.json
+include ../Makefile
 
-include ../../utils/Makefile
+syntaxcheck: resail_ipv4.p4
+	p4test $(P4TESTFLAGS) resail_ipv4.p4
