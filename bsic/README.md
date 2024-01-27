@@ -8,12 +8,6 @@ $ git clone https://github.com/jafingerhut/p4-guide
 $ git clone https://github.com/jafingerhut/cram
 $ cd cram
 $ git checkout makefiles-do-open-source-syntax-check-compiles
-$ git log -n 1 | cat
-commit a1b7edeab2060e8cc659a51a5d8b63c94bd7db99
-Author: Andy Fingerhut <andy_fingerhut@alum.wustl.edu>
-Date:   Sat Jan 27 20:48:44 2024 +0000
-
-    Add 10 sets of table sizes for bsic_ipv6.p4
 ```
 
 Set up environment variables `SDE` and `SDE_INSTALL` as is typically
@@ -35,5 +29,15 @@ certain, as it has been several months since I ran the results before.
 
 ```bash
 $ cd cram/bsic
-$ ../scripts/compile-tofino2.sh bsic_ipv6.p4
+$ ../scripts/compile-tofino2.sh bsic_ipv6.p4 -DTABLE_SIZES_3
 ```
+
+We would like at least the total number of TCAM and SRAM pages used in
+ingress and egress, as well as total number of stages in ingress and
+egress.  If it is quick enough for you, a screenshot of the P4 Insight
+page that shows the number of TCAM pages and SRAM pages broken down by
+each ingress stage, and each egress stage, would also be nice.
+
+Then repeat the above for each of the preprocessor symbols
+`-DTABLE_SIZES_4` through `-DTABLE_SIZES_11`, for a total of 9
+variants of the program.
