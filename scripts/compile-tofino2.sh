@@ -16,15 +16,17 @@ fi
 echo "Found directory P4GUIDE=${P4GUIDE} ..."
 STDLIB_INC_DIR="${P4GUIDE}/stdlib"
 
-if [ $# -ne 1 ]
+if [ $# -lt 1 ]
 then
-    1>&2 echo "usage: $0 prog.p4"
+    1>&2 echo "usage: $0 prog.p4 <other bf-p4c cmd line opts here, if desired>"
     exit 1
 fi
 BASENAME=`basename $1 .p4`
+shift
 
 bf-p4c \
     -DTOFINO2 \
+    $* \
     -b tofino2 \
     -a t2na \
     --verbose 3 \
