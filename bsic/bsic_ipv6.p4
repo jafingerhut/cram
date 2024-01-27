@@ -33,6 +33,8 @@ limitations under the License.
 
 #include <stdheaders.p4>
 
+#include "table_sizes.p4"
+
 // There are two styles of P4 code that can be enabled by choosing to
 // #define at most one of the two preprocessor symbols below:
 
@@ -112,7 +114,7 @@ const PortId_t LOOPBACK_PORT = 5;
 #define NEXT_HOP_SIZE 8
 
 typedef bit<NEXT_HOP_SIZE> next_hop_index_t;
-typedef bit<16> bst_index_t;
+typedef bit<BST_INDEX_SIZE> bst_index_t;
 typedef bit<1> bst_hit_t;
 
 header bridge_metadata_t {
@@ -373,7 +375,7 @@ control ingressImpl(
             drop_packet;
         }
         const default_action = drop_packet;
-	    size = 7463;
+	    size = INITIAL_LOOKUP_TABLE_SIZE;
     }
     table bst_0_table {
         key = {
@@ -382,7 +384,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 7408;
+        size = BST_0_TABLE_SIZE;
     }
     table bst_1_table {
         key = {
@@ -391,7 +393,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 14816;
+        size = BST_1_TABLE_SIZE;
     }
     table bst_2_table {
         key = {
@@ -400,7 +402,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 19770;
+        size = BST_2_TABLE_SIZE;
     }
     table bst_3_table {
         key = {
@@ -409,7 +411,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 21588;
+        size = BST_3_TABLE_SIZE;
     }
     table bst_4_table {
         key = {
@@ -418,7 +420,7 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 22994;
+        size = BST_4_TABLE_SIZE;
     }
     table bst_12_table {
         key = {
@@ -427,8 +429,9 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 23448;
+        size = BST_12_TABLE_SIZE;
     }
+#ifdef BST_13_TABLE_SIZE
     table bst_13_table {
         key = {
             hdr.bridge_md.bst_index : exact;
@@ -436,8 +439,9 @@ control ingressImpl(
         actions = {
             node_decision;
         }
-        size = 8464;
+        size = BST_13_TABLE_SIZE;
     }
+#endif  // BST_13_TABLE_SIZE
     table next_hop_table {
         key = {
             hdr.bridge_md.next_hop_index : exact;
@@ -459,10 +463,12 @@ control ingressImpl(
                 bst_12_table.apply();
                 NODE_DECISION_CODE
             }
+#ifdef BST_13_TABLE_SIZE
             if (hdr.bridge_md.bst_hit != 1) {
                 bst_13_table.apply();
                 NODE_DECISION_CODE
             }
+#endif  // BST_13_TABLE_SIZE
             if (hdr.bridge_md.bst_hit != 1) {
                 drop_packet();
             }
@@ -591,7 +597,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 26626;
+        size = BST_5_TABLE_SIZE;
     }
     table bst_6_table {
         key = {
@@ -600,7 +606,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 35276;
+        size = BST_6_TABLE_SIZE;
     }
     table bst_7_table {
         key = {
@@ -609,7 +615,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 46774;
+        size = BST_7_TABLE_SIZE;
     }
     table bst_8_table {
         key = {
@@ -618,7 +624,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 47162;
+        size = BST_8_TABLE_SIZE;
     }
     table bst_9_table {
         key = {
@@ -627,7 +633,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 42160;
+        size = BST_9_TABLE_SIZE;
     }
     table bst_10_table {
         key = {
@@ -636,7 +642,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 39140;
+        size = BST_10_TABLE_SIZE;
     }
     table bst_11_table {
         key = {
@@ -645,7 +651,7 @@ control egressImpl(
         actions = {
             node_decision;
         }
-        size = 40942;
+        size = BST_11_TABLE_SIZE;
     }
     action init_loopback_header() {
         hdr.loopback.setValid();

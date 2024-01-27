@@ -10,4 +10,4 @@
 include ../Makefile
 
 syntaxcheck: bsic_ipv6.p4
-	p4test $(P4TESTFLAGS) bsic_ipv6.p4
+	p4test -DTABLE_SIZES_3 $(P4TESTFLAGS) bsic_ipv6.p4
